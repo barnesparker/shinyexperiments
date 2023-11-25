@@ -15,7 +15,7 @@ box::use(
   app/view/mod_preproc,
   app/view/mod_data_split,
   app/view/mod_modeling,
-  app/view/mod_train_config,
+  app/view/mod_tune_config,
   app/view/mod_data_exploration,
   app/view/mod_data_import
 )
@@ -44,8 +44,8 @@ ui <- function(id) {
           mod_modeling$ui(ns("mod_modeling"))
         ),
         bs$nav_panel(
-          "Train",
-          mod_train_config$ui(ns("mod_train_config"))
+          "Tune",
+          mod_tune_config$ui(ns("mod_tune_config"))
         )
       ),
       width = "35%"
@@ -92,13 +92,18 @@ server <- function(id) {
     data_splits <- mod_data_split$server("mod_data_split", raw_data)
 
 
+
+
+
     mod_data_exploration$server("mod_data_exploration_raw", reactive_training)
     mod_data_exploration$server("mod_data_exploration_preproc", sh$req(reactive_recipe()) |>
       recipes$prep() |>
       recipes$juice() |> sh$reactive())
 
 
-    reactive_recipe <- mod_preproc$server("mod_preproc", reactive_training)
+    saved_recipes <- sh$reactiveValues()
+
+    reactive_recipe <- mod_preproc$server("mod_preproc", reactive_training, saved_recipes)
 
 
     output$train_data_preprocessed_gt <-
@@ -128,11 +133,18 @@ server <- function(id) {
         }
       })
 
-    reactive_model_spec <- mod_modeling$server("mod_modeling", reactive_mode)
+    saved_models <- sh$reactiveValues()
 
-    reactive_train_config <- mod_train_config$server(
-      "mod_train_config", reactive_mode,
-      reactive_model_spec
+    reactive_model_spec <- mod_modeling$server("mod_modeling", reactive_mode, saved_models)
+
+
+    saved_tune_configs <- sh$reactiveValues()
+
+    mod_tune_config$server(
+      "mod_tune_config", reactive_mode,
+      reactive_model_spec,
+      saved_models,
+      saved_tune_configs
     )
 
     reactive_workflow <-
@@ -150,15 +162,6 @@ server <- function(id) {
         }
         wf
       })
-
-    # sh$observe({
-    # browser()
-
-    # withCallingHandlers(
-    #   sh$req(reactive_workflow()),
-    #   message = function(m) output$workflow_preview <- sh$renderPrint(m$message)
-    # )
-    # })
 
     output$workflow_preview <- sh$renderPrint({
       sh$req(reactive_workflow())

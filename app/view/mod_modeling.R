@@ -16,10 +16,10 @@ box::use(
 #' @export
 ui <- function(id) {
   ns <- NS(id)
-  bs$accordion(
-    id = ns("modeling_accordion"),
-    open = T,
-    sh$tagList(
+  sh$tagList(
+    bs$accordion(
+      id = ns("modeling_accordion"),
+      open = T,
       bs$accordion_panel(
         "Model Selection",
         sh$uiOutput(ns("model_selection_ui")),
@@ -44,14 +44,13 @@ ui <- function(id) {
 }
 
 #' @export
-server <- function(id, model_mode = reactive("regression")) {
+server <- function(id, model_mode, saved_models) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
 
     output$model_selection_ui <-
       sh$renderUI({
-
         model_choices <- parsnip$model_db |>
           dp$filter(
             mode == model_mode(),
@@ -78,7 +77,7 @@ server <- function(id, model_mode = reactive("regression")) {
       sh$showModal(
         sh$modalDialog(
           title = "Save Model",
-          sh$textInput(ns("model_name"), "Model Name"),
+          sh$textInput(ns("model_name"), "Model Name", value = "model"),
           footer = sh$tagList(
             sh$modalButton("Cancel"),
             sh$actionButton(
@@ -95,6 +94,7 @@ server <- function(id, model_mode = reactive("regression")) {
     sh$observe({
       sh$removeModal()
 
+      saved_models[[input$model_name]] <- reactive_model_spec()
     }) |>
       sh$bindEvent(input$confirm_save_button)
 
@@ -191,7 +191,6 @@ server <- function(id, model_mode = reactive("regression")) {
         if (length(available_args()) == 0) {
           sh$tagList()
         } else {
-
           args_inputs <-
             purrr$map(
               available_args(),

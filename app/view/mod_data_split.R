@@ -1,7 +1,8 @@
 box::use(
   sh = shiny,
   bs = bslib,
-  rsample
+  rsample,
+  dp = dplyr
 )
 
 #' @export
@@ -51,16 +52,27 @@ server <- function(id, raw_data) {
       sh$selectInput(
         ns("strata"),
         "Strata",
-        choices = c(colnames(raw_data()), "None")
+        choices = c(colnames(raw_data()), "None"),
+        selected = "None"
       )
     })
+
+    reactive_strata <-
+      sh$reactive({
+        if (sh$req(input$strata) == "None") {
+          NULL
+        } else {
+          input$strata
+        }
+      })
+
 
     reactive_split <-
       sh$reactive({
         raw_data() |>
           rsample$initial_split(
             prop = sh$req(input$split_prop),
-            strata = sh$req(input$strata)
+            strata = reactive_strata()
           )
       }) |>
       sh$debounce(1000)
@@ -75,7 +87,7 @@ server <- function(id, raw_data) {
           rsample$vfold_cv(
             v = sh$req(input$folds),
             repeats = sh$req(input$repeats),
-            strata = sh$req(input$strata)
+            strata = reactive_strata()
           )
       })
 

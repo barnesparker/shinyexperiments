@@ -61,7 +61,7 @@ ui <- function(id) {
 }
 
 #' @export
-server <- function(id, reactive_training) {
+server <- function(id, reactive_training, saved_recipes) {
   sh$moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -173,6 +173,8 @@ server <- function(id, reactive_training) {
 
     sh$observe({
       sh$removeModal()
+
+      saved_recipes[[input$recipe_name]] <- reactive_recipe()
 
     }) |>
       sh$bindEvent(input$confirm_save_button)
