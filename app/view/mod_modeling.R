@@ -34,7 +34,12 @@ ui <- function(id) {
         sh$uiOutput(ns("args_ui"))
       )
     ),
-    sh$verbatimTextOutput(ns("model_preview"))
+    sh$verbatimTextOutput(ns("model_preview")),
+    sh$actionButton(
+      ns("save_model_button"),
+      "Save Model",
+      icon = sh$icon("save")
+    )
   )
 }
 
@@ -68,6 +73,30 @@ server <- function(id, model_mode = reactive("regression")) {
       sh$renderPrint({
         reactive_model_spec()
       })
+
+    sh$observe({
+      sh$showModal(
+        sh$modalDialog(
+          title = "Save Model",
+          sh$textInput(ns("model_name"), "Model Name"),
+          footer = sh$tagList(
+            sh$modalButton("Cancel"),
+            sh$actionButton(
+              ns("confirm_save_button"),
+              "Save Model",
+              icon = sh$icon("save")
+            )
+          )
+        )
+      )
+    }) |>
+      sh$bindEvent(input$save_model_button)
+
+    sh$observe({
+      sh$removeModal()
+
+    }) |>
+      sh$bindEvent(input$confirm_save_button)
 
     # function to recursively return all elements of list non reactive
     de_reactive <- function(x) {

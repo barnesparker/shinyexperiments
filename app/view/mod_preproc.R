@@ -9,7 +9,8 @@ box::use(
 )
 
 box::use(
-  app/view/mod_rec_step
+  app/view/mod_rec_step,
+  app/logic/helpers
 )
 
 #' @export
@@ -42,10 +43,15 @@ ui <- function(id) {
             "Remove Step",
             icon = sh$icon("trash")
           ),
+          # sh$actionButton(
+          #   ns("preview_recipe"),
+          #   "Preview Recipe",
+          #   icon = sh$icon("eye")
+          # )
           sh$actionButton(
-            ns("preview_recipe"),
-            "Preview Recipe",
-            icon = sh$icon("eye")
+            ns("save_recipe_button"),
+            "Save Recipe",
+            icon = sh$icon("save")
           )
         )
       )
@@ -62,13 +68,12 @@ server <- function(id, reactive_training) {
     # function to select on columns who are numeric or have only 2 unique values
     find_outcome_candiates <- function(df) {
       df |>
-        purrr$keep(~is.numeric(.x) | dp$n_distinct(.x, na.rm = T) == 2) |>
+        purrr$keep(~ is.numeric(.x) | dp$n_distinct(.x, na.rm = T) == 2) |>
         colnames()
     }
 
 
     output$outcome_select_ui <- sh$renderUI({
-
       outcome_candidates <-
         reactive_training() |>
         find_outcome_candiates()
@@ -146,14 +151,33 @@ server <- function(id, reactive_training) {
     }) |>
       sh$bindEvent(input$remove_step)
 
-    apply_steps <- function(rec) {
-      sh$req(rec)
-      for (step in purrr$compact(sh$reactiveValuesToList(preproc_steps))) {
-        sh$req(step$vars())
-        rec <- do.call(step$func(), list(rec, step$vars()), envir = recipes)
-      }
-      rec
-    }
+
+
+    sh$observe({
+      sh$showModal(
+        sh$modalDialog(
+          title = "Save Recipe",
+          sh$textInput(ns("recipe_name"), "Recipe Name"),
+          footer = sh$tagList(
+            sh$modalButton("Cancel"),
+            sh$actionButton(
+              ns("confirm_save_button"),
+              "Save Recipe",
+              icon = sh$icon("save")
+            )
+          )
+        )
+      )
+    }) |>
+      sh$bindEvent(input$save_recipe_button)
+
+    sh$observe({
+      sh$removeModal()
+
+    }) |>
+      sh$bindEvent(input$confirm_save_button)
+
+
 
 
     reactive_formula <-
@@ -174,7 +198,7 @@ server <- function(id, reactive_training) {
           sh$req(reactive_formula()),
           data = reactive_training()
         ) |>
-          apply_steps()
+          helpers$apply_steps(sh$reactiveValuesToList(preproc_steps))
       })
 
 
@@ -182,7 +206,8 @@ server <- function(id, reactive_training) {
 
     output$recipe_preview <-
       sh$renderText({
-        reactive_recipe()
+        reactive_recipe() |>
+          recipes$prep()
       }) |>
       sh$bindEvent(input$preview_recipe)
 
@@ -194,17 +219,13 @@ server <- function(id, reactive_training) {
 
     reactive_mode <-
       sh$reactive({
-        if (dp$n_distinct(reactive_training()[[input$outcome_select]], na.rm = T) == 2)
+        if (dp$n_distinct(reactive_training()[[input$outcome_select]], na.rm = T) == 2) {
           "classification"
-        else
+        } else {
           "regression"
+        }
       })
 
-
     reactive_recipe
-    # list(
-    # preproc_steps,
-    # train_data_juiced
-    # )
   })
 }

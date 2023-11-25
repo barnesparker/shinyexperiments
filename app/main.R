@@ -2,19 +2,22 @@ box::use(
   sh = shiny,
   bs = bslib,
   bsicons,
-  modeldata,
   gt,
   rsample,
   recipes,
   dp = dplyr,
-  workflows
+  workflows,
+  visdat,
+  DE = DataExplorer
 )
 
 box::use(
   app/view/mod_preproc,
   app/view/mod_data_split,
   app/view/mod_modeling,
-  app/view/mod_train_config
+  app/view/mod_train_config,
+  app/view/mod_data_exploration,
+  app/view/mod_data_import
 )
 
 #' @export
@@ -24,6 +27,10 @@ ui <- function(id) {
     title = "Shiny Experiments",
     sidebar = bs$sidebar(
       bs$navset_underline(
+        bs$nav_panel(
+          "Import",
+          mod_data_import$ui(ns("mod_data_import"))
+        ),
         bs$nav_panel(
           "Split",
           mod_data_split$ui(ns("mod_data_split"))
@@ -45,16 +52,16 @@ ui <- function(id) {
     ),
     # bs$input_dark_mode(mode = "light"),
     bs$nav_panel(
-      "Build a Workflow",
+      "Workflow Builder",
       icon = sh$icon("screwdriver-wrench"),
-      bs$navset_pill_list(
+      bs$navset_underline(
         bs$nav_panel(
-          "Raw Data",
-          gt$gt_output(ns("train_data_gt")),
+          "Raw Training Data",
+          mod_data_exploration$ui(ns("mod_data_exploration_raw"))
         ),
         bs$nav_panel(
           "Preprocessed Data",
-          gt$gt_output(ns("train_data_preprocessed_gt"))
+          mod_data_exploration$ui(ns("mod_data_exploration_preproc"))
         ),
         bs$nav_panel(
           "Workflow Preview",
@@ -72,23 +79,24 @@ ui <- function(id) {
 #' @export
 server <- function(id) {
   sh$moduleServer(id, function(input, output, session) {
-    raw_data <- modeldata$penguins
+    raw_data <- mod_data_import$server("mod_data_import")
 
-    output$train_data_gt <-
-      gt$render_gt({
-        gt$gt(reactive_training()) |>
-          gt$opt_interactive(
-            use_search = T
-          )
-      })
 
-    data_splits <- mod_data_split$server("mod_data_split", raw_data)
 
     reactive_training <-
       sh$reactive({
         data_splits$reactive_split() |>
           rsample$training()
       })
+
+    data_splits <- mod_data_split$server("mod_data_split", raw_data)
+
+
+    mod_data_exploration$server("mod_data_exploration_raw", reactive_training)
+    mod_data_exploration$server("mod_data_exploration_preproc", sh$req(reactive_recipe()) |>
+      recipes$prep() |>
+      recipes$juice() |> sh$reactive())
+
 
     reactive_recipe <- mod_preproc$server("mod_preproc", reactive_training)
 
@@ -144,17 +152,16 @@ server <- function(id) {
       })
 
     # sh$observe({
-      # browser()
+    # browser()
 
-      # withCallingHandlers(
-      #   sh$req(reactive_workflow()),
-      #   message = function(m) output$workflow_preview <- sh$renderPrint(m$message)
-      # )
+    # withCallingHandlers(
+    #   sh$req(reactive_workflow()),
+    #   message = function(m) output$workflow_preview <- sh$renderPrint(m$message)
+    # )
     # })
 
     output$workflow_preview <- sh$renderPrint({
       sh$req(reactive_workflow())
     })
-
   })
 }

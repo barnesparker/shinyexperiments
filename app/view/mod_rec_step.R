@@ -60,7 +60,7 @@ server <- function(id, step_num, data) {
         step_select <- input$step_select
         dp$case_when(
           step_select %in% c("step_normalize", "step_log") ~ list(colnames(purrr$keep(data(), is.numeric))),
-          stringr$str_detect(step_select, "impute") ~ list(colnames(purrr$keep(data(), ~ sum(is.na(.x)) > 0)))
+          stringr$str_detect(step_select, "impute") ~ list(colnames(purrr$keep(data(), ~ is.numeric(.x) & sum(is.na(.x)) > 0)))
         ) |>
           unlist()
       })

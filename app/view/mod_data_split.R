@@ -51,18 +51,19 @@ server <- function(id, raw_data) {
       sh$selectInput(
         ns("strata"),
         "Strata",
-        choices = c(colnames(raw_data), "None")
+        choices = c(colnames(raw_data()), "None")
       )
     })
 
     reactive_split <-
       sh$reactive({
-        raw_data |>
+        raw_data() |>
           rsample$initial_split(
             prop = sh$req(input$split_prop),
             strata = sh$req(input$strata)
           )
-      })
+      }) |>
+      sh$debounce(1000)
 
     output$preview_splits <- sh$renderPrint({
       reactive_split()
