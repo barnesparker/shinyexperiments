@@ -17,7 +17,8 @@ box::use(
   app/view/mod_modeling,
   app/view/mod_tune_config,
   app/view/mod_data_exploration,
-  app/view/mod_data_import
+  app/view/mod_data_import,
+  app/view/mod_saved_objects
 )
 
 #' @export
@@ -64,8 +65,8 @@ ui <- function(id) {
           mod_data_exploration$ui(ns("mod_data_exploration_preproc"))
         ),
         bs$nav_panel(
-          "Workflow Preview",
-          sh$verbatimTextOutput(ns("workflow_preview"))
+          "Saved Objects",
+          mod_saved_objects$ui(ns("mod_saved_objects"))
         )
       )
     ),
@@ -148,24 +149,7 @@ server <- function(id) {
       reactive_training
     )
 
-    reactive_workflow <-
-      sh$reactive({
-        wf <- workflows$workflow()
+    mod_saved_objects$server("mod_saved_objects", saved_recipes, saved_models, saved_tune_configs)
 
-        if (sh$isTruthy(reactive_recipe())) {
-          wf <- wf |>
-            workflows$add_recipe(reactive_recipe())
-        }
-
-        if (sh$isTruthy(reactive_model_spec())) {
-          wf <- wf |>
-            workflows$add_model(reactive_model_spec())
-        }
-        wf
-      })
-
-    output$workflow_preview <- sh$renderPrint({
-      sh$req(reactive_workflow())
-    })
   })
 }
