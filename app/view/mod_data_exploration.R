@@ -1,11 +1,9 @@
 box::use(
   sh = shiny[moduleServer, NS],
-  visdat,
   DE = DataExplorer,
   gt,
   bs = bslib,
   tidyr,
-  plotly,
   gg = ggplot2
 )
 

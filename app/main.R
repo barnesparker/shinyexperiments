@@ -1,13 +1,11 @@
 box::use(
   sh = shiny,
   bs = bslib,
-  bsicons,
   gt,
   rsample,
   recipes,
   dp = dplyr,
   workflows,
-  visdat,
   DE = DataExplorer
 )
 

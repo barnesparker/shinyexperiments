@@ -3,7 +3,6 @@ box::use(
   bs = bslib,
   gt,
   rt = reactable,
-  rtextras = reactable.extras,
   tibble,
   htmltools,
   stringr,
@@ -14,7 +13,6 @@ box::use(
 ui <- function(id) {
   ns <- NS(id)
   sh$tagList(
-    rtextras$reactable_extras_dependency(),
     bs$layout_columns(
       rt$reactableOutput(ns("recipes_rt")),
       rt$reactableOutput(ns("models_rt"))
