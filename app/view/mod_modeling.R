@@ -10,7 +10,8 @@ box::use(
 )
 
 box::use(
-  app/view/mod_hyperparam
+  app/view/mod_hyperparam,
+  app/logic/helpers
 )
 
 #' @export
@@ -63,7 +64,7 @@ server <- function(id, model_mode, saved_models) {
           session$ns("model_selection"),
           "Choose a Model",
           choices = model_choices,
-          selected = model_choices[1]
+          selected = "decision_tree"
         )
       })
 
@@ -98,16 +99,7 @@ server <- function(id, model_mode, saved_models) {
     }) |>
       sh$bindEvent(input$confirm_save_button)
 
-    # function to recursively return all elements of list non reactive
-    de_reactive <- function(x) {
-      if (is.list(x)) {
-        purrr$map(x, de_reactive)
-      } else if (sh$is.reactive(x)) {
-        x()
-      } else {
-        x
-      }
-    }
+
 
     reactive_model_spec <-
       sh$reactive({
@@ -115,7 +107,7 @@ server <- function(id, model_mode, saved_models) {
 
         params_list <-
           params_list[names(params_list) %in% available_args()] |>
-          de_reactive()
+          helpers$de_reactive()
 
         # browser()
 

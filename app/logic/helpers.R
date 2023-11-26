@@ -25,3 +25,14 @@ pluck_param <- function(ls) {
     ls |> purrr$pluck("values") |> eval(envir = dials)
   }
 }
+
+#' @export
+de_reactive <- function(x) { # function to recursively return all elements of list non reactive
+  if (is.list(x)) {
+    purrr$map(x, de_reactive)
+  } else if (sh$is.reactive(x)) {
+    x()
+  } else {
+    x
+  }
+}

@@ -6,10 +6,13 @@ box::use(
   dials,
   purrr,
   rlang,
-  sw = shinyWidgets
+  sw = shinyWidgets,
+  stringr,
+  stats
 )
 
 box::use(
+  app/view/mod_tune_param,
   app/logic/helpers
 )
 
@@ -32,9 +35,10 @@ ui <- function(id) {
             "Random" = "grid_random",
             "Latin Hypercube" = "grid_latin_hypercube",
             "Max Entropy" = "grid_max_entropy"
-          ),
-          selected = "grid_latin_hypercube"
-        )
+          )
+          # selected = "grid_latin_hypercube"
+        ),
+        sh$uiOutput(ns("grid_size_ui"))
       ),
       bs$accordion_panel(
         "Tune Parameters",
@@ -50,6 +54,7 @@ ui <- function(id) {
       #   )
       # )
     ),
+    sh$verbatimTextOutput(ns("tune_config_preview")),
     sh$actionButton(
       ns("save_tune_config_button"),
       "Save Tune Config",
@@ -59,7 +64,7 @@ ui <- function(id) {
 }
 
 #' @export
-server <- function(id, model_mode, model_spec, saved_models, saved_tune_configs) {
+server <- function(id, model_mode, model_spec, saved_models, saved_tune_configs, train_data) {
   moduleServer(id, function(input, output, session) {
     output$model_config_ui <-
       sh$renderUI({
@@ -68,6 +73,35 @@ server <- function(id, model_mode, model_spec, saved_models, saved_tune_configs)
           "Select Model Config",
           choices = names(saved_models)
         )
+      })
+
+    sh$observe({
+      if (input$tune_grid_select == "grid_regular") {
+        sh$updateNumericInput(
+          session = session,
+          inputId = "grid_size",
+          label = "Levels",
+          value = 5
+        )
+      } else {
+        sh$updateNumericInput(
+          session = session,
+          inputId = "grid_size",
+          label = "Size",
+          value = 20
+        )
+      }
+    })
+
+    output$grid_size_ui <-
+      sh$renderUI({
+        if (input$tune_grid_select != "grid_regular") {
+          sh$numericInput(
+            session$ns("grid_size"),
+            label = "Max Grid Size",
+            value = 20
+          )
+        }
       })
 
     # sh$observe({
@@ -98,49 +132,41 @@ server <- function(id, model_mode, model_spec, saved_models, saved_tune_configs)
     #   }
     # })
 
+    tunable_param_list <- sh$reactive({
+      saved_models[[sh$req(input$model_config)]]$args |>
+        purrr$map(rlang$as_label) |>
+        purrr$keep(~ .x == "tune()")
+    })
+
+
+    tune_param_inputs <- sh$reactiveValues()
 
     output$tune_param_ui <-
       sh$renderUI({
-        tunable_param_list <-
-          saved_models[[sh$req(input$model_config)]]$args |>
-          purrr$map(rlang$as_label) |>
-          purrr$keep(~ .x == "tune()")
         tune_inputs <-
-          purrr$map2(
-            names(tunable_param_list),
-            tunable_param_list,
-            \(param, value) {
+          purrr$map(
+            names(tunable_param_list()),
+            # tunable_param_list(),
+            \(tune_param) {
               default_param_vals <-
-                get(param, envir = dials) |>
+                get(tune_param, envir = dials) |>
                 formals() |>
                 as.list() |>
                 helpers$pluck_param() |>
                 eval()
 
-              if (is.numeric(default_param_vals)) {
-                sw$numericRangeInput(
-                  session$ns(paste0(input$model_config, "_", param, "range")),
-                  label = paste(param, "Range"),
-                  value = default_param_vals
-                )
-              } else if (is.character(default_param_vals)) {
-                sh$selectInput(
-                  session$ns(paste0(input$model_config, "_", param, "select")),
-                  label = paste(param, "Select"),
-                  choices = default_param_vals
-                )
-              }
+              tune_param_id <- paste("mod_tune", tune_param, "range", sep = "_")
+              # browser()
+              tune_param_ui <- mod_tune_param$ui(
+                session$ns(tune_param_id), tune_param, input$tune_grid_select,
+                default_param_vals
+              )
+              tune_param_inputs[[tune_param]] <- mod_tune_param$server(tune_param_id)
+              tune_param_ui
             }
           )
 
         sh$tagList(!!!tune_inputs)
-        # if (input$tune_grid_select == "grid_regular") {
-        #
-        #
-        #
-        # } else {
-        #
-        # }
       })
 
     # reactive_metric_set <-
@@ -150,14 +176,47 @@ server <- function(id, model_mode, model_spec, saved_models, saved_tune_configs)
 
     reactive_tune_config <-
       sh$reactive({
-        do.call(input$tune_grid_select, list())
+        tune_param_list <- tune_param_inputs |> sh$reactiveValuesToList()
+
+        tune_param_list <-
+          tune_param_list[names(tune_param_list) %in% names(tunable_param_list())] |>
+          helpers$de_reactive()
+
+        sh$req(length(tune_param_list) > 0)
+
+        # browser()
+
+        levels_vec <-
+          tune_param_list |>
+          purrr$map(~purrr$keep(.x, names(.x) == "levels")) |>
+          unlist() |>
+          sh$req() |>
+          stats$setNames(names(tune_param_list))
+
+        tune_param_list <-
+          purrr$map2(names(tune_param_list), tune_param_list, \(param, args) {
+            args <- args[names(args) != "levels"]
+            do.call(param, purrr$compact(args), envir = dials)
+          })
+
+        if (input$tune_grid_select == "grid_regular") {
+          tune_param_list <- c(tune_param_list, list(levels = levels_vec))
+        } else {
+          tune_param_list <- c(tune_param_list, list(size = sh$req(input$grid_size)))
+        }
+        do.call(input$tune_grid_select, tune_param_list, envir = dials)
+      })
+
+    output$tune_config_preview <-
+      sh$renderPrint({
+        reactive_tune_config()
       })
 
 
     sh$observe({
       sh$showModal(
         sh$modalDialog(
-          title = "Save Tune Configuration",
+          title = paste0("Save Tune Configuration for model spec: ", input$model_config),
           # sh$textInput(ns("tune_config_name"), "Tune Configuration Name"),
           footer = sh$tagList(
             sh$modalButton("Cancel"),

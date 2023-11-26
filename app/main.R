@@ -144,7 +144,8 @@ server <- function(id) {
       "mod_tune_config", reactive_mode,
       reactive_model_spec,
       saved_models,
-      saved_tune_configs
+      saved_tune_configs,
+      reactive_training
     )
 
     reactive_workflow <-

@@ -23,7 +23,8 @@ ui <- function(id) {
       bs$accordion_panel(
         "Formula Definition",
         sh$uiOutput(ns("outcome_select_ui")),
-        sh$uiOutput(ns("predictor_select_ui"))
+        sh$uiOutput(ns("predictor_select_ui")),
+        sh$verbatimTextOutput(ns("formula_preview"))
       ),
       bs$accordion_panel(
         "Recipe Steps",
@@ -191,6 +192,11 @@ server <- function(id, reactive_training, saved_recipes) {
             paste0(sh$req(input$predictor_select), collapse = " + ")
           )
         )
+      })
+
+    output$formula_preview <-
+      sh$renderPrint({
+        print(reactive_formula(), showEnv = F)
       })
 
 
