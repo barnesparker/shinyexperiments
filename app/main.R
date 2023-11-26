@@ -51,7 +51,6 @@ ui <- function(id) {
       ),
       width = "35%"
     ),
-    # bs$input_dark_mode(mode = "light"),
     bs$nav_panel(
       "Workflow Builder",
       icon = sh$icon("screwdriver-wrench"),
@@ -73,7 +72,12 @@ ui <- function(id) {
     bs$nav_panel(
       "Experiment",
       icon = sh$icon("flask")
+    ),
+    bs$nav_spacer(),
+    bs$nav_item(
+      bs$input_dark_mode(mode = "light")
     )
+
   )
 }
 
