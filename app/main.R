@@ -5,8 +5,7 @@ box::use(
   rsample,
   recipes,
   dp = dplyr,
-  workflows,
-  DE = DataExplorer
+  workflows
 )
 
 box::use(
