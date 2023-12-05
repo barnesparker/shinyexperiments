@@ -67,6 +67,8 @@ server <- function(id, step_num, data) {
 
     sh$observe({
       if (!is.null(preset_cols())) {
+        sh$freezeReactiveValue(input, "step_predictors")
+
         sh$updateSelectInput(
           session,
           "step_predictors",

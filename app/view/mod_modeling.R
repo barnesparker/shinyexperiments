@@ -139,7 +139,7 @@ server <- function(id, model_mode, saved_models) {
         dp$distinct(engine) |>
         dp$pull(engine)
 
-
+      sh$freezeReactiveValue(input, "engine")
       sh$updateSelectInput(
         session,
         "engine",

@@ -5,7 +5,8 @@ box::use(
   rsample,
   stats,
   purrr,
-  dp = dplyr
+  dp = dplyr,
+  utils
 )
 
 box::use(
@@ -22,8 +23,17 @@ ui <- function(id) {
       id = ns("preproc_accordion"),
       bs$accordion_panel(
         "Formula Definition",
-        sh$uiOutput(ns("outcome_select_ui")),
-        sh$uiOutput(ns("predictor_select_ui")),
+        sh$selectInput(
+          ns("outcome_select"),
+          "Outcome",
+          choices = NULL
+        ),
+        sh$selectInput(
+          ns("predictor_select"),
+          "Predictors",
+          choices = NULL,
+          multiple = T
+        ),
         sh$verbatimTextOutput(ns("formula_preview"))
       ),
       bs$accordion_panel(
@@ -44,11 +54,11 @@ ui <- function(id) {
             "Remove Step",
             icon = sh$icon("trash")
           ),
-          # sh$actionButton(
-          #   ns("preview_recipe"),
-          #   "Preview Recipe",
-          #   icon = sh$icon("eye")
-          # )
+          sh$actionButton(
+            ns("preview_recipe_button"),
+            "Preview Recipe",
+            icon = sh$icon("eye")
+          ),
           sh$actionButton(
             ns("save_recipe_button"),
             "Save Recipe",
@@ -57,7 +67,7 @@ ui <- function(id) {
         )
       )
     ),
-    sh$textOutput(ns("recipe_preview"))
+    sh$uiOutput(ns("recipe_preview"))
   )
 }
 
@@ -66,38 +76,34 @@ server <- function(id, reactive_training, saved_recipes) {
   sh$moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
-    # function to select on columns who are numeric or have only 2 unique values
-    find_outcome_candiates <- function(df) {
-      df |>
-        purrr$keep(~ is.numeric(.x) | dp$n_distinct(.x, na.rm = T) == 2) |>
-        colnames()
-    }
 
 
-    output$outcome_select_ui <- sh$renderUI({
+
+    sh$observe({
       outcome_candidates <-
         reactive_training() |>
-        find_outcome_candiates()
+        helpers$find_outcome_candiates()
 
-      sh$selectInput(
-        ns("outcome_select"),
-        "Outcome",
-        choices = outcome_candidates
+      sh$freezeReactiveValue(input, "outcome_select")
+      sh$updateSelectInput(
+        session,
+        "outcome_select",
+        choices = outcome_candidates,
+        selected = outcome_candidates[1]
       )
     })
 
-    output$predictor_select_ui <- sh$renderUI({
+    sh$observe({
+      sh$freezeReactiveValue(input, "predictor_select")
       cols <- colnames(reactive_training())
       cols <- cols[cols != input$outcome_select]
-      sh$selectInput(
-        ns("predictor_select"),
-        "Predictors",
+      sh$updateSelectInput(
+        session,
+        "predictor_select",
         choices = cols,
-        selected = cols,
-        multiple = T
+        selected = cols
       )
     })
-
     preproc_steps <- sh$reactiveValues()
 
     step_count <- sh$reactiveVal(0)
@@ -158,7 +164,7 @@ server <- function(id, reactive_training, saved_recipes) {
       sh$showModal(
         sh$modalDialog(
           title = "Save Recipe",
-          sh$textInput(ns("recipe_name"), "Recipe Name"),
+          sh$textInput(ns("recipe_name"), "Recipe Name", value = "recipe"),
           footer = sh$tagList(
             sh$modalButton("Cancel"),
             sh$actionButton(
@@ -176,7 +182,6 @@ server <- function(id, reactive_training, saved_recipes) {
       sh$removeModal()
 
       saved_recipes[[input$recipe_name]] <- reactive_recipe()
-
     }) |>
       sh$bindEvent(input$confirm_save_button)
 
@@ -207,17 +212,21 @@ server <- function(id, reactive_training, saved_recipes) {
           data = reactive_training()
         ) |>
           helpers$apply_steps(sh$reactiveValuesToList(preproc_steps))
-      })
+      }) |>
+      sh$bindEvent(input$preview_recipe_button)
 
 
 
 
     output$recipe_preview <-
-      sh$renderText({
-        reactive_recipe() |>
+      sh$renderUI({
+        recipe_prepped <-
+          reactive_recipe() |>
           recipes$prep()
+
+        sh$tags$pre(paste(utils$capture.output(recipe_prepped, type = "message"), collapse = "\n"))
       }) |>
-      sh$bindEvent(input$preview_recipe)
+      sh$bindEvent(input$preview_recipe_button)
 
     train_data_juiced <- sh$reactive({
       reactive_recipe() |>

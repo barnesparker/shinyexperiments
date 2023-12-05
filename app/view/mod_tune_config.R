@@ -76,6 +76,7 @@ server <- function(id, model_mode, model_spec, saved_models, saved_tune_configs,
       })
 
     sh$observe({
+      sh$freezeReactiveValue(input, "grid_size")
       if (input$tune_grid_select == "grid_regular") {
         sh$updateNumericInput(
           session = session,

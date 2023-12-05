@@ -1,7 +1,6 @@
 box::use(
   sh = shiny,
   bs = bslib,
-  gt,
   rsample,
   recipes,
   dp = dplyr,
@@ -15,7 +14,9 @@ box::use(
   app/view/mod_tune_config,
   app/view/mod_data_exploration,
   app/view/mod_data_import,
-  app/view/mod_saved_objects
+  app/view/mod_saved_objects,
+  app/view/mod_workflow_select,
+  app/view/mod_results
 )
 
 #' @export
@@ -23,27 +24,40 @@ ui <- function(id) {
   ns <- sh$NS(id)
   bs$page_navbar(
     title = "Shiny Experiments",
+    id = ns("nav"),
     sidebar = bs$sidebar(
-      bs$navset_underline(
-        bs$nav_panel(
-          "Import",
-          mod_data_import$ui(ns("mod_data_import"))
+      sh$conditionalPanel(
+        "input[['app-nav']] == 'Workflow Builder'",
+        bs$navset_underline(
+          bs$nav_panel(
+            "Import",
+            mod_data_import$ui(ns("mod_data_import"))
+          ),
+          bs$nav_panel(
+            "Split",
+            mod_data_split$ui(ns("mod_data_split"))
+          ),
+          bs$nav_panel(
+            "Preprocess",
+            mod_preproc$ui(ns("mod_preproc"))
+          ),
+          bs$nav_panel(
+            "Model",
+            mod_modeling$ui(ns("mod_modeling"))
+          ),
+          bs$nav_panel(
+            "Tune",
+            mod_tune_config$ui(ns("mod_tune_config"))
+          )
         ),
-        bs$nav_panel(
-          "Split",
-          mod_data_split$ui(ns("mod_data_split"))
-        ),
-        bs$nav_panel(
-          "Preprocess",
-          mod_preproc$ui(ns("mod_preproc"))
-        ),
-        bs$nav_panel(
-          "Model",
-          mod_modeling$ui(ns("mod_modeling"))
-        ),
-        bs$nav_panel(
-          "Tune",
-          mod_tune_config$ui(ns("mod_tune_config"))
+      ),
+      sh$conditionalPanel(
+        "input[['app-nav']] == 'Experiment'",
+        bs$navset_underline(
+          bs$nav_panel(
+            "Workflow Mapping",
+            mod_workflow_select$ui(ns("mod_workflow_select"))
+          )
         )
       ),
       width = "35%"
@@ -68,13 +82,18 @@ ui <- function(id) {
     ),
     bs$nav_panel(
       "Experiment",
-      icon = sh$icon("flask")
+      icon = sh$icon("flask"),
+      bs$navset_underline(
+        bs$nav_panel(
+          "Results",
+          mod_results$ui(ns("mod_results"))
+        )
+      )
     ),
     bs$nav_spacer(),
     bs$nav_item(
-      bs$input_dark_mode(mode = "light")
+      bs$input_dark_mode()
     )
-
   )
 }
 
@@ -107,21 +126,9 @@ server <- function(id) {
 
     reactive_recipe <- mod_preproc$server("mod_preproc", reactive_training, saved_recipes)
 
-
-    output$train_data_preprocessed_gt <-
-      gt$render_gt({
-        # reactive_training() |>
-        sh$req(reactive_recipe()) |>
-          recipes$prep() |>
-          recipes$juice() |>
-          gt$gt() |>
-          gt$opt_interactive(
-            use_search = T
-          )
-      })
-
     reactive_mode <-
       sh$reactive({
+        # browser()
         outcome_type <-
           reactive_recipe()$var_info |>
           dp$filter(
@@ -150,7 +157,13 @@ server <- function(id) {
       reactive_training
     )
 
-    mod_saved_objects$server("mod_saved_objects", saved_recipes, saved_models, saved_tune_configs)
+    saved_wflowsets <- sh$reactiveValues()
+
+    mod_saved_objects$server("mod_saved_objects", saved_recipes, saved_models, saved_tune_configs, saved_wflowsets)
+
+    reactive_results <- mod_workflow_select$server("mod_workflow_select", saved_wflowsets, data_splits$reactive_resamples)
+
+    mod_results$server("mod_results", reactive_results)
 
   })
 }
