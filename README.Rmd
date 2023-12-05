@@ -14,9 +14,16 @@ knitr::opts_chunk$set(
 # shinyexperiments
 
 <!-- badges: start -->
+
 <!-- badges: end -->
 
-The goal of shinyexperiments is to provide a low-code interface to the tidymodels
-package while preserving and enhancing its underlying machine learning principles.
+The goal of `shinyexperiments` is to provide a [`shiny`](https://shiny.posit.co/) interface to the [`tidymodels`](https://www.tidymodels.org/) machine learning framework while preserving and enhancing its underlying data science principles.
 
-This package is currently in active development and is not yet ready for use.
+This repo is currently in active development and is not yet ready for use. However, if you are interested in trying out the current version, you can install it by [cloning the repo](https://argoshare.is.ed.ac.uk/healthyr_book/clone-an-existing-github-project-to-new-rstudio-project.html) and running the following command:
+
+```{r, eval = FALSE}
+
+renv::restore()
+
+rhino::app()
+```
