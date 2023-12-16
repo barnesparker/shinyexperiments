@@ -12,6 +12,7 @@ run_app <- function(
     options = list(),
     enableBookmarking = NULL,
     uiPattern = "/",
+    data_board = NULL,
     ...) {
   with_golem_options(
     app = shinyApp(
@@ -22,6 +23,6 @@ run_app <- function(
       enableBookmarking = enableBookmarking,
       uiPattern = uiPattern
     ),
-    golem_opts = list(...)
+    golem_opts = list(data_board = data_board, ...)
   )
 }

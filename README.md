@@ -16,13 +16,12 @@ The goal of `shinyexperiments` is to provide a
 [`tidymodels`](https://www.tidymodels.org/) machine learning framework
 while preserving and enhancing its underlying data science principles.
 
-This repo is currently in active development and is not yet ready for
-use. However, if you are interested in trying out the current version,
-you can install it by running the following commands
+This package is currently in active development and is not yet ready for
+use. However, if you are interested in trying out the development
+version, you can install it by running the following commands
 
 ``` r
 # install.packages("pak")
 pak::pak("barnesparker/shinyexperiments")
-library(shinyexperiments)
-run_app()
+shinyexperiments::run_app()
 ```

@@ -7,7 +7,21 @@
 app_server <- function(input, output, session) {
   # Your application server logic
 
-  raw_data <- mod_data_import_server("mod_data_import")
+  shiny::observe({
+    shiny::showModal(
+      mod_data_import_ui("mod_data_import")
+    )
+  })
+
+  raw_data <- shiny::reactive({
+    shiny::removeModal()
+    data_import$dataset_choice()
+  }) |>
+    bindEvent(data_import$confirm_data_import_button())
+
+
+
+  data_import <- mod_data_import_server("mod_data_import")
 
 
 
@@ -55,7 +69,6 @@ app_server <- function(input, output, session) {
   saved_models <- reactiveValues()
 
   reactive_model_spec <- mod_modeling_server("mod_modeling", reactive_mode, saved_models)
-
 
   saved_tune_configs <- reactiveValues()
 

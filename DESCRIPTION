@@ -12,6 +12,7 @@ Imports:
     modeldata,
     parsnip,
     reactable,
+    readr,
     recipes,
     shiny (>= 1.8.0),
     shinyjs,

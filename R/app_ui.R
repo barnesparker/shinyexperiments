@@ -12,16 +12,12 @@ app_ui <- function(request) {
   # Your application UI logic
   page_navbar(
     title = "Shiny Experiments",
-    golem_add_external_resources(),
+    # golem_add_external_resources(),
     id = "nav",
     sidebar = sidebar(
       conditionalPanel(
         "input[['nav']] == 'Workflow Builder'",
         navset_underline(
-          nav_panel(
-            "Import",
-            mod_data_import_ui("mod_data_import")
-          ),
           nav_panel(
             "Split",
             mod_data_split_ui("mod_data_split")
