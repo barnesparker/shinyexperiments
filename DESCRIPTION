@@ -1,0 +1,27 @@
+Package: shinyexperiments
+Title: shinyexperiments
+Version: 0.0.0.9000
+Authors@R: person('Parker', 'Barnes', email = 'barnesparker1@gmail.com', role = c('cre', 'aut'))
+Description: A shiny app that interfaces with the tidymodels package
+License: MIT + file LICENSE
+Imports: 
+    box,
+    config (>= 0.3.2),
+    DataExplorer,
+    golem (>= 0.4.1),
+    modeldata,
+    parsnip,
+    reactable,
+    recipes,
+    shiny (>= 1.8.0),
+    shinyjs,
+    shinyWidgets,
+    tune
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.2.3
+URL: https://github.com/barnesparker/shinyexperiments
+BugReports: https://github.com/barnesparker/shinyexperiments/issues
+Suggests: 
+    spelling
+Language: en-US

@@ -4,6 +4,11 @@
 # shinyexperiments
 
 <!-- badges: start -->
+
+[![Lifecycle:
+experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
+[![Codecov test
+coverage](https://codecov.io/gh/barnesparker/shinyexperiments/branch/main/graph/badge.svg)](https://app.codecov.io/gh/barnesparker/shinyexperiments?branch=main)
 <!-- badges: end -->
 
 The goal of `shinyexperiments` is to provide a
@@ -13,13 +18,11 @@ while preserving and enhancing its underlying data science principles.
 
 This repo is currently in active development and is not yet ready for
 use. However, if you are interested in trying out the current version,
-you can install it by [cloning the
-repo](https://happygitwithr.com/new-github-first#rstudio-ide)
-and running the following command:
+you can install it by running the following commands
 
 ``` r
-
-renv::restore()
-
-rhino::app()
+# install.packages("pak")
+pak::pak("barnesparker/shinyexperiments")
+library(shinyexperiments)
+run_app()
 ```
