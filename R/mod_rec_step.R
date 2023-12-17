@@ -24,9 +24,23 @@ mod_rec_step_ui <- function(id, step_num) {
     shiny::selectInput(
       ns("step_predictors"),
       "Predictors",
-      multiple = T,
-      choices = NULL
+      multiple = F,
+      choices = c(
+        "All Numeric Predictors" = "all_numeric_predictors",
+        "All Nominal Predictors" = "all_nominal_predictors",
+        "All Factor Predictors" = "all_factor_predictors",
+        "All Date Predictors" = "all_date_predictors",
+        "All Logical Predictors" = "all_logical_predictors",
+        "All Predictors" = "all_predictors",
+        "All Outcomes" = "all_outcomes"
+      )
     ),
+    # shiny::selectInput(
+    #   ns("step_predictors"),
+    #   "Predictors",
+    #   multiple = T,
+    #   choices = NULL
+    # ),
     # shiny::radioButtons(
     #   ns("step_predictors"),
     #   choices = c("All", "Numeric", "Nominal")
@@ -38,7 +52,7 @@ mod_rec_step_ui <- function(id, step_num) {
 #' rec_step Server Functions
 #'
 #' @noRd
-mod_rec_step_server <- function(id, step_num, data) {
+mod_rec_step_server <- function(id, step_num, data, pred_cols) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
     rec_args <- shiny::reactiveValues()
@@ -50,32 +64,39 @@ mod_rec_step_server <- function(id, step_num, data) {
     #   )
     # })
 
+    # preset_cols <-
+    #   shiny::reactive({
+    #
+    #   })
 
 
-    preset_cols <-
-      shiny::reactive({
-        shiny::req(input$step_select, data())
-        # browser()
-        step_select <- input$step_select
-        dplyr::case_when(
-          step_select %in% c("step_normalize", "step_log") ~ list(colnames(purrr::keep(data(), is.numeric))),
-          stringr::str_detect(step_select, "impute") ~ list(colnames(purrr::keep(data(), ~ is.numeric(.x) & sum(is.na(.x)) > 0)))
-        ) |>
-          unlist()
-      })
+    # preset_cols <-
+    #   shiny::reactive({
+    #     shiny::req(input$step_select, data())
+    #     browser()
+    #     cols <- pred_cols[[as.character(step_num - 1)]]
+    #     rec_data <- data() |> dplyr::select(dplyr::any_of(cols))
+    #     # browser()
+    #     step_select <- input$step_select
+    #     dplyr::case_when(
+    #       step_select %in% c("step_normalize", "step_log") ~ list(colnames(purrr::keep(rec_data, is.numeric))),
+    #       stringr::str_detect(step_select, "impute") ~ list(colnames(purrr::keep(rec_data, ~ is.numeric(.x) & sum(is.na(.x)) > 0)))
+    #     ) |>
+    #       unlist()
+    #   })
 
-    shiny::observe({
-      if (!is.null(preset_cols())) {
-        shiny::freezeReactiveValue(input, "step_predictors")
-
-        shiny::updateSelectInput(
-          session,
-          "step_predictors",
-          choices = preset_cols(),
-          selected = preset_cols()
-        )
-      }
-    })
+    # shiny::observe({
+    #   if (!is.null(preset_cols())) {
+    #     shiny::freezeReactiveValue(input, "step_predictors")
+    #
+    #     shiny::updateSelectInput(
+    #       session,
+    #       "step_predictors",
+    #       choices = preset_cols(),
+    #       selected = preset_cols()
+    #     )
+    #   }
+    # })
 
 
     list(

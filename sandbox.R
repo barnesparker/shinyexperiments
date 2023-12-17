@@ -2,43 +2,72 @@ library(tidymodels)
 
 data(Chicago)
 # Use a small sample to keep file sizes down:
-Chicago <- Chicago %>% slice(1:365)
+Chicago <- Chicago |> slice(1:365)
+
+vget <- Vectorize(get)
+vsym <- Vectorize(rlang::sym)
+
+rec <- recipe(ridership ~ ., data = Chicago)
+
+
+preds <- "all_predictors" |>
+  get()
+
+test <- "asdf"
+
+assign(test, preds)
+
+get("step_select")(rec, test())
+  prep()
+
+
+do.call("step_select", list(rec, preds), quote = F) |>
+  prep()
+  # prep()
+
+recipe(ridership ~ ., data = Chicago) |>
+  step_select(all_predictors()) |>
+  prep()
+
+
+rsample::vfold_cv(Chicago, v = 5)
+
 
 base_recipe <-
-  recipe(ridership ~ ., data = Chicago) %>%
+  recipe(ridership ~ ., data = Chicago) |>
   # create date features
-  step_date(date) %>%
-  step_holiday(date) %>%
+  step_date(date) |>
+  step_holiday(date) |>
   # remove date from the list of predictors
-  update_role(date, new_role = "id") %>%
+  update_role(date, new_role = "id") |>
   # create dummy variables from factor columns
-  step_dummy(all_nominal()) %>%
+  step_dummy(all_nominal()) |>
   # remove any columns with a single unique value
-  step_zv(all_predictors()) %>%
+  step_zv(all_predictors()) |>
   step_normalize(all_predictors())
 
 
 filter_rec <-
-  base_recipe %>%
+  base_recipe |>
   step_corr(all_of(stations), threshold = tune())
 
 pca_rec <-
-  base_recipe %>%
-  step_pca(all_of(stations), num_comp = tune()) %>%
+  base_recipe |>
+  step_pca(all_of(stations), num_comp = tune()) |>
   step_normalize(all_predictors())
 
 regularized_spec <-
-  linear_reg(penalty = tune(), mixture = tune()) %>%
+  linear_reg(penalty = tune(), mixture = tune()) |>
   set_engine("glmnet")
 
 cart_spec <-
-  decision_tree(cost_complexity = tune(), min_n = tune()) %>%
-  set_engine("rpart") %>%
+  decision_tree(cost_complexity = tune(), min_n = tune()) |>
+  set_engine("rpart") |>
   set_mode("regression")
 
 knn_spec <-
-  nearest_neighbor(neighbors = tune(), weight_func = tune()) %>%
-  set_engine("kknn") %>%
+  nearest_neighbor(neighbors = tune(), weight_func = tune()) |>
+  set_engine("kknn") |>
   set_mode("regression")
 
 
@@ -52,7 +81,7 @@ chi_models <-
   )
 
 chi_models <-
-  chi_models %>%
+  chi_models |>
   anti_join(tibble(wflow_id = c("pca_glmnet", "filter_glmnet")),
             by = "wflow_id")
 
@@ -69,7 +98,7 @@ splits <-
 
 set.seed(123)
 chi_models <-
-  chi_models %>%
+  chi_models |>
   # The first argument is a function name from the {{tune}} package
   # such as `tune_grid()`, `fit_resamples()`, etc.
   workflow_map("tune_grid", resamples = splits, grid = 10,

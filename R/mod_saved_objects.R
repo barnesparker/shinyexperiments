@@ -12,6 +12,7 @@ mod_saved_objects_ui <- function(id) {
   tagList(
     shinyjs::useShinyjs(),
     bslib::layout_columns(
+      reactable::reactableOutput(ns("splits_rt")),
       reactable::reactableOutput(ns("recipes_rt")),
       reactable::reactableOutput(ns("models_rt"))
     ),
@@ -22,9 +23,53 @@ mod_saved_objects_ui <- function(id) {
 #' saved_objects Server Functions
 #'
 #' @noRd
-mod_saved_objects_server <- function(id, saved_recipes, saved_models, saved_tune_configs, saved_wflowsets) {
+mod_saved_objects_server <- function(id, saved_split_configs, raw_data, saved_recipes, saved_models, saved_tune_configs, saved_wflowsets) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
+
+    output$splits_rt <- reactable::renderReactable({
+      tibble::tibble(
+        Split = names(saved_split_configs)
+      ) |>
+        reactable::reactable(
+          columns = list(
+            Split = reactable::colDef(
+              name = "Split"
+            )
+          ),
+          selection = "single",
+          onClick = "select",
+          details = function(index) {
+            split_id <- names(saved_split_configs)[index]
+            split_config <- saved_split_configs[[split_id]]
+            set.seed(split_config$seed)
+            split <- rsample::initial_split(
+              raw_data(),
+              prop = split_config$split_prop,
+              strata = split_config$strata
+            )
+
+            resamples <-
+              rsample::vfold_cv(
+                rsample::training(split),
+                v = split_config$folds,
+                strata = split_config$strata,
+                repeats = split_config$repeats
+              )
+
+            # bslib::layout_columns(
+            shiny::tags$div(
+              shiny::tags$pre(paste(capture.output(
+                cat("Seed:", split_config$seed, "\n", "Strata:", split_config$strata, "\n"), split, resamples, type = "output"), collapse = "\n"))
+            )
+            # htmltools::div(
+            #   shiny::tags$pre(paste(capture.output(resamples, type = "message"), collapse = "\n"))
+            # )
+            # )
+          }
+        )
+    })
+
     output$recipes_rt <- reactable::renderReactable({
       tibble::tibble(
         Recipe = names(saved_recipes)
@@ -41,8 +86,7 @@ mod_saved_objects_server <- function(id, saved_recipes, saved_models, saved_tune
             recipe_id <- names(saved_recipes)[index]
 
             htmltools::div(
-              htmltools::pre(capture.output(saved_recipes[[recipe_id]], type = "message") |>
-                stringr::str_flatten(collapse = "\n"))
+              shiny::tags$pre(paste(capture.output(saved_recipes[[recipe_id]] |> recipes::prep(), type = "message"), collapse = "\n"))
             )
           }
         )
@@ -87,12 +131,17 @@ mod_saved_objects_server <- function(id, saved_recipes, saved_models, saved_tune
     }) |>
       shiny::bindEvent(input$create_wflowset_button)
 
-
+    selected_splits <- shiny::reactive(shiny::reactiveValuesToList(saved_split_configs)[reactable::getReactableState("splits_rt", "selected", session = session)])
     selected_recipes <- shiny::reactive(shiny::reactiveValuesToList(saved_recipes)[reactable::getReactableState("recipes_rt", "selected", session = session)])
     selected_models <- shiny::reactive(shiny::reactiveValuesToList(saved_models)[reactable::getReactableState("models_rt", "selected", session = session)])
 
     shiny::observe({
-      if (length(selected_recipes()) == 0 | length(selected_models()) == 0) {
+      if (any(
+        length(selected_recipes()) == 0,
+        length(selected_models()) == 0,
+        length(selected_splits()) == 0
+      )
+      ) {
         shinyjs::disable("create_wflowset_button")
       } else {
         shinyjs::enable("create_wflowset_button")

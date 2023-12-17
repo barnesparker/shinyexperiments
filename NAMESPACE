@@ -2,6 +2,8 @@
 
 export(run_app)
 import(bslib)
+import(dials)
+import(recipes)
 import(shiny)
 importFrom(golem,activate_js)
 importFrom(golem,add_resource_path)

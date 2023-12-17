@@ -12,7 +12,8 @@ mod_results_ui <- function(id) {
   tagList(
     shiny::verbatimTextOutput(ns("results_print")),
     bslib::card(
-      shiny::plotOutput(ns("results_autoplot"))
+      shiny::plotOutput(ns("results_autoplot")),
+      full_screen = T
     )
   )
 }

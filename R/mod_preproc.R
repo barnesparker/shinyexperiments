@@ -14,18 +14,8 @@ mod_preproc_ui <- function(id) {
       open = T,
       id = ns("preproc_accordion"),
       bslib::accordion_panel(
-        "Formula Definition",
-        shiny::selectInput(
-          ns("outcome_select"),
-          "Outcome",
-          choices = NULL
-        ),
-        shiny::selectInput(
-          ns("predictor_select"),
-          "Predictors",
-          choices = NULL,
-          multiple = T
-        ),
+        "Select Predictors",
+        shiny::uiOutput(ns("predictor_select_ui")),
         shiny::verbatimTextOutput(ns("formula_preview"))
       ),
       bslib::accordion_panel(
@@ -66,34 +56,27 @@ mod_preproc_ui <- function(id) {
 #' preproc Server Functions
 #'
 #' @noRd
-mod_preproc_server <- function(id, reactive_training, saved_recipes) {
+mod_preproc_server <- function(id, reactive_training, saved_recipes, outcome) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
-    shiny::observe({
-      outcome_candidates <-
-        reactive_training() |>
-        find_outcome_candiates()
 
-      shiny::freezeReactiveValue(input, "outcome_select")
-      shiny::updateSelectInput(
-        session,
-        "outcome_select",
-        choices = outcome_candidates,
-        selected = outcome_candidates[1]
-      )
-    })
-
-    shiny::observe({
-      shiny::freezeReactiveValue(input, "predictor_select")
+    output$predictor_select_ui <- shiny::renderUI({
       cols <- colnames(reactive_training())
-      cols <- cols[cols != input$outcome_select]
-      shiny::updateSelectInput(
-        session,
-        "predictor_select",
+      cols <- cols[cols != outcome()]
+      shiny::selectInput(
+        ns("predictor_select"),
+        "Predictors",
+        multiple = T,
         choices = cols,
         selected = cols
       )
     })
+
+    pred_cols <- shiny::reactiveValues()
+
+    # shiny::observe({
+    #   pred_cols[["0"]] <- c(input$predictor_select, outcome())
+    # })
     preproc_steps <- shiny::reactiveValues()
 
     step_count <- shiny::reactiveVal(0)
@@ -102,13 +85,14 @@ mod_preproc_server <- function(id, reactive_training, saved_recipes) {
     shiny::observe({
       step_count(step_count() + 1)
 
+      rec_step_title <- paste0("Step", step_count())
       rec_step_id <- paste0("mod_rec_step_", step_count())
 
       bslib::accordion_panel_insert(
         id = "rec_steps_accordion",
         # target = paste0("Step", step_count() - 1),
         panel = bslib::accordion_panel(
-          paste0("Step", step_count()),
+          rec_step_title,
           mod_rec_step_ui(
             ns(rec_step_id),
             step_count()
@@ -119,7 +103,7 @@ mod_preproc_server <- function(id, reactive_training, saved_recipes) {
       bslib::accordion_panel_open(
         id = "rec_steps_accordion",
         # session = session,
-        values = paste0("Step", step_count())
+        values = rec_step_title
         # values = T
       )
     }) |>
@@ -129,8 +113,9 @@ mod_preproc_server <- function(id, reactive_training, saved_recipes) {
       shiny::req(step_count() > 0)
       preproc_steps[[as.character(step_count())]] <- mod_rec_step_server(
         paste0("mod_rec_step_", step_count()),
-        step_count,
-        reactive_training
+        step_count(), # this should be a static value for the server
+        reactive_training,
+        pred_cols
       )
     })
 
@@ -182,7 +167,7 @@ mod_preproc_server <- function(id, reactive_training, saved_recipes) {
       shiny::reactive({
         as.formula(
           paste0(
-            shiny::req(input$outcome_select),
+            outcome(),
             " ~ ",
             paste0(shiny::req(input$predictor_select), collapse = " + ")
           )
@@ -197,20 +182,33 @@ mod_preproc_server <- function(id, reactive_training, saved_recipes) {
 
     reactive_recipe <-
       shiny::reactive({
+
+        recipe_steps <- shiny::reactiveValuesToList(preproc_steps)
+
         recipes::recipe(
           shiny::req(reactive_formula()),
           data = reactive_training()
         ) |>
-          apply_steps(shiny::reactiveValuesToList(preproc_steps))
+          apply_steps(recipe_steps)
       })
 
     reactive_recipe_prepped <-
       shiny::reactive({
+        shiny::req(reactive_recipe())
+        # browser()
         reactive_recipe() |>
           recipes::prep()
       }) |>
       shiny::bindEvent(input$preview_recipe_button)
 
+    shiny::observe({
+      current_cols <-
+        reactive_recipe_prepped() |>
+        summary() |>
+        dplyr::pull(variable)
+
+      pred_cols[[as.character(step_count())]] <- current_cols
+    })
 
 
 
@@ -221,19 +219,9 @@ mod_preproc_server <- function(id, reactive_training, saved_recipes) {
       shiny::bindEvent(input$preview_recipe_button)
 
     train_data_juiced <- shiny::reactive({
-      reactive_recipe() |>
-        recipes::prep() |>
+      reactive_recipe_prepped() |>
         recipes::juice()
     })
-
-    reactive_mode <-
-      shiny::reactive({
-        if (dplyr::n_distinct(reactive_training()[[input$outcome_select]], na.rm = T) == 2) {
-          "classification"
-        } else {
-          "regression"
-        }
-      })
 
     reactive_recipe_prepped
   })

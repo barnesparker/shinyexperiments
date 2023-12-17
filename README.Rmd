@@ -21,7 +21,7 @@ knitr::opts_chunk$set(
 
 The goal of `shinyexperiments` is to provide a [`shiny`](https://shiny.posit.co/) interface to the [`tidymodels`](https://www.tidymodels.org/) machine learning framework while preserving and enhancing its underlying data science principles.
 
-This package is currently in active development and is not yet ready for use. However, if you are interested in trying out the development version, you can install it by running the following commands
+This package is currently in active development and is not yet ready for use. If you are interested in trying out the development version, you can install and run it by running the following commands
 
 ```{r, eval = FALSE}
 # install.packages("pak")

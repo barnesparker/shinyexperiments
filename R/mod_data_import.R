@@ -21,6 +21,7 @@ mod_data_import_ui <- function(id) {
       )
     ),
     shiny::uiOutput(ns("dataset_picker_ui")),
+    shiny::uiOutput(ns("outcome_select")),
     shiny::verbatimTextOutput(ns("raw_data_glimpse")),
     footer = shiny::actionButton(
         ns("confirm_data_import_button"),
@@ -93,15 +94,22 @@ mod_data_import_server <- function(id) {
         }
       })
 
+    output$outcome_select <- shiny::renderUI({
+      shiny::selectInput(
+        ns("outcome_select"),
+        "Outcome",
+        choices = find_outcome_candiates(dataset_choice())
+      )
+    })
+
     output$raw_data_glimpse <- shiny::renderPrint({
       dplyr::glimpse(shiny::req(dataset_choice()))
     })
 
     list(
       dataset_choice = dataset_choice,
-      confirm_data_import_button = reactive({
-        shiny::req(input$confirm_data_import_button)
-      })
+      outcome = shiny::reactive(input$outcome_select),
+      confirm_data_import_button = reactive(input$confirm_data_import_button)
     )
   })
 }

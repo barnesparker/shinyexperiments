@@ -24,6 +24,14 @@ app_server <- function(input, output, session) {
   data_import <- mod_data_import_server("mod_data_import")
 
 
+  reactive_mode <-
+    shiny::reactive({
+      if (dplyr::n_distinct(reactive_training()[[data_import$outcome()]], na.rm = T) == 2) {
+        "classification"
+      } else {
+        "regression"
+      }
+    })
 
   reactive_training <-
     reactive({
@@ -31,7 +39,10 @@ app_server <- function(input, output, session) {
         rsample::training()
     })
 
-  data_splits <- mod_data_split_server("mod_data_split", raw_data)
+  saved_split_configs <- reactiveValues()
+
+
+  data_splits <- mod_data_split_server("mod_data_split", raw_data, data_import$outcome, saved_split_configs)
 
 
 
@@ -48,23 +59,7 @@ app_server <- function(input, output, session) {
 
   saved_recipes <- reactiveValues()
 
-  reactive_recipe_prepped <- mod_preproc_server("mod_preproc", reactive_training, saved_recipes)
-
-  reactive_mode <-
-    reactive({
-      # browser()
-      outcome_type <-
-        reactive_recipe_prepped()$var_info |>
-        dplyr::filter(
-          role == "outcome"
-        ) |>
-        dplyr::pull(type)
-      if ("numeric" %in% outcome_type[[1]]) {
-        "regression"
-      } else {
-        "classification"
-      }
-    })
+  reactive_recipe_prepped <- mod_preproc_server("mod_preproc", reactive_training, saved_recipes, data_import$outcome)
 
   saved_models <- reactiveValues()
 
@@ -82,7 +77,7 @@ app_server <- function(input, output, session) {
 
   saved_wflowsets <- reactiveValues()
 
-  mod_saved_objects_server("mod_saved_objects", saved_recipes, saved_models, saved_tune_configs, saved_wflowsets)
+  mod_saved_objects_server("mod_saved_objects", saved_split_configs, raw_data, saved_recipes, saved_models, saved_tune_configs, saved_wflowsets)
 
   reactive_results <- mod_workflow_select_server("mod_workflow_select", saved_wflowsets, data_splits$reactive_resamples)
 

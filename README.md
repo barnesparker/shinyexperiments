@@ -17,8 +17,8 @@ The goal of `shinyexperiments` is to provide a
 while preserving and enhancing its underlying data science principles.
 
 This package is currently in active development and is not yet ready for
-use. However, if you are interested in trying out the development
-version, you can install it by running the following commands
+use. If you are interested in trying out the development version, you
+can install and run it by running the following commands
 
 ``` r
 # install.packages("pak")

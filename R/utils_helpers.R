@@ -5,12 +5,13 @@
 #' @return The return value, if any, from executing the utility.
 #'
 #' @noRd
+#' @import recipes
 apply_steps <- function(rec, preproc_steps) {
   shiny::req(rec)
   box::use(recipes)
   for (step in purrr::compact(preproc_steps)) {
     shiny::req(step$vars())
-    rec <- do.call(step$func(), list(rec, step$vars()), envir = recipes)
+    rec <- get(step$func())(rec, get(step$vars())())
   }
   rec
 }
@@ -22,8 +23,8 @@ apply_steps <- function(rec, preproc_steps) {
 #' @return The return value, if any, from executing the utility.
 #'
 #' @noRd
+#' @import dials
 pluck_param <- function(ls) {
-  box::use(dials)
   if (ls |> purrr::pluck_exists("range")) {
     ls |>
       purrr::pluck("range") |>
@@ -33,7 +34,7 @@ pluck_param <- function(ls) {
   } else if (ls |> purrr::pluck_exists("values")) {
     ls |>
       purrr::pluck("values") |>
-      eval(envir = dials)
+      eval()
   }
 }
 
