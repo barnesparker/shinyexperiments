@@ -12,11 +12,12 @@ app_ui <- function(request) {
   # Your application UI logic
   page_navbar(
     title = "Shiny Experiments",
+
     # golem_add_external_resources(),
     id = "nav",
     sidebar = sidebar(
       conditionalPanel(
-        "input[['nav']] == 'Workflow Builder'",
+        "input[['nav']] == 'Build'",
         navset_underline(
           nav_panel(
             "Split",
@@ -33,6 +34,10 @@ app_ui <- function(request) {
           nav_panel(
             "Tune",
             mod_tune_config_ui("mod_tune_config")
+          ),
+          nav_panel(
+            "Evaluate",
+            mod_metrics_ui("mod_metrics")
           )
         ),
       ),
@@ -40,15 +45,15 @@ app_ui <- function(request) {
         "input[['nav']] == 'Experiment'",
         navset_underline(
           nav_panel(
-            "Workflow Mapping",
-            mod_workflow_select_ui("mod_workflow_select")
+            "Run",
+            mod_experiment_select_ui("mod_workflow_select")
           )
         )
       ),
       width = "35%"
     ),
     nav_panel(
-      "Workflow Builder",
+      "Build",
       icon = icon("screwdriver-wrench"),
       class = "bslib-page-dashboard",
       navset_underline(
@@ -72,8 +77,12 @@ app_ui <- function(request) {
       class = "bslib-page-dashboard",
       navset_underline(
         nav_panel(
-          "Results",
-          mod_results_ui("mod_results")
+          "Current Results",
+          mod_current_results_ui("mod_current_results")
+        ),
+        nav_panel(
+          "All Results",
+          mod_all_results_ui("mod_all_results")
         )
       )
     ),

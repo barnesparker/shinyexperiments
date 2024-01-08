@@ -7,6 +7,7 @@
 #' @noRd
 #'
 #' @importFrom shiny NS tagList
+#' @import recipes
 mod_preproc_ui <- function(id) {
   ns <- NS(id)
   tagList(
@@ -19,7 +20,7 @@ mod_preproc_ui <- function(id) {
         shiny::verbatimTextOutput(ns("formula_preview"))
       ),
       bslib::accordion_panel(
-        "Recipe Steps",
+        "Preprocessing Steps",
         bslib::accordion(
           id = ns("rec_steps_accordion"),
           open = T
@@ -38,14 +39,18 @@ mod_preproc_ui <- function(id) {
           ),
           shiny::actionButton(
             ns("preview_recipe_button"),
-            "Preview Recipe",
+            "Preview",
             icon = shiny::icon("eye")
           ),
-          shiny::actionButton(
-            ns("save_recipe_button"),
-            "Save Recipe",
-            icon = shiny::icon("save")
+          mod_save_object_dialog_ui(
+            ns("save_object_dialog_recipe"),
+            "Save"
           )
+          # shiny::actionButton(
+          #   ns("save_recipe_button"),
+          #   "Save Recipe",
+          #   icon = shiny::icon("save")
+          # )
         )
       )
     ),
@@ -56,19 +61,22 @@ mod_preproc_ui <- function(id) {
 #' preproc Server Functions
 #'
 #' @noRd
-mod_preproc_server <- function(id, reactive_training, saved_recipes, outcome) {
+mod_preproc_server <- function(id, reactive_training, saved_recipes, outcome, exp_id) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
     output$predictor_select_ui <- shiny::renderUI({
       cols <- colnames(reactive_training())
       cols <- cols[cols != outcome()]
-      shiny::selectInput(
+      shiny::selectizeInput(
         ns("predictor_select"),
         "Predictors",
         multiple = T,
         choices = cols,
-        selected = cols
+        selected = cols,
+        options = list(
+          plugins = list("remove_button")
+        )
       )
     })
 
@@ -122,6 +130,7 @@ mod_preproc_server <- function(id, reactive_training, saved_recipes, outcome) {
 
 
     shiny::observe({
+      shiny::req(step_count() > 0)
       bslib::accordion_panel_remove(
         "rec_steps_accordion",
         paste0("Step", step_count())
@@ -135,30 +144,23 @@ mod_preproc_server <- function(id, reactive_training, saved_recipes, outcome) {
 
 
 
-    shiny::observe({
-      shiny::showModal(
-        shiny::modalDialog(
-          title = "Save Recipe",
-          shiny::textInput(ns("recipe_name"), "Recipe Name", value = "recipe"),
-          footer = shiny::tagList(
-            shiny::modalButton("Cancel"),
-            shiny::actionButton(
-              ns("confirm_save_button"),
-              "Save Recipe",
-              icon = shiny::icon("save")
-            )
-          )
-        )
-      )
-    }) |>
-      shiny::bindEvent(input$save_recipe_button)
+    mod_save_object_dialog_server("save_object_dialog_recipe", "Recipe", reactive_recipe, exp_id)
 
-    shiny::observe({
-      shiny::removeModal()
-
-      saved_recipes[[input$recipe_name]] <- reactive_recipe()
-    }) |>
-      shiny::bindEvent(input$confirm_save_button)
+    # shiny::observe({
+    #   shiny::removeModal()
+    #
+    #   # saved_recipes[[input$recipe_name]] <- reactive_recipe()
+    #
+    #   # recipe_config <-
+    #   #   list(
+    #   #     formula = Reduce(paste, deparse(reactive_formula())),
+    #   #     preproc_steps = shiny::reactiveValuesToList(preproc_steps) |> de_reactive()
+    #   #   )
+    #
+    #   save_exp_config(reactive_recipe(), exp_id(), input$recipe_name, config_type = "preproc")
+    #
+    # }) |>
+    #   shiny::bindEvent(input$confirm_save_button)
 
 
 
@@ -195,7 +197,6 @@ mod_preproc_server <- function(id, reactive_training, saved_recipes, outcome) {
     reactive_recipe_prepped <-
       shiny::reactive({
         shiny::req(reactive_recipe())
-        # browser()
         reactive_recipe() |>
           recipes::prep()
       }) |>

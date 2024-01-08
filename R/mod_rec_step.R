@@ -16,25 +16,33 @@ mod_rec_step_ui <- function(id, step_num) {
       choices = c(
         "Normalize" = "step_normalize",
         "Log Transform" = "step_log",
+        "Dummy Encode" = "step_dummy",
         "Impute Mean" = "step_impute_mean",
-        "Impute Median" = "step_impute_median"
+        "Impute Median" = "step_impute_median",
+        "Impute Mode" = "step_impute_mode",
+        "Impute Linear" = "step_impute_linear"
       ),
       selected = "step_normalize"
     ),
-    shiny::selectInput(
+    shiny::selectizeInput(
       ns("step_predictors"),
       "Predictors",
-      multiple = F,
+      multiple = T,
       choices = c(
-        "All Numeric Predictors" = "all_numeric_predictors",
-        "All Nominal Predictors" = "all_nominal_predictors",
-        "All Factor Predictors" = "all_factor_predictors",
-        "All Date Predictors" = "all_date_predictors",
-        "All Logical Predictors" = "all_logical_predictors",
-        "All Predictors" = "all_predictors",
-        "All Outcomes" = "all_outcomes"
+        "All Numeric Predictors" = "all_numeric_predictors()",
+        "All Nominal Predictors" = "all_nominal_predictors()",
+        "All Factor Predictors" = "all_factor_predictors()",
+        "All Date Predictors" = "all_date_predictors()",
+        "All Logical Predictors" = "all_logical_predictors()",
+        "All Predictors" = "all_predictors()",
+        "All Outcomes" = "all_outcomes()"
+      ),
+      options = list(
+        create = T,
+        plugins = list("remove_button")
       )
     ),
+    # shiny::uiOutput(ns("custom_predictors_ui")),
     # shiny::selectInput(
     #   ns("step_predictors"),
     #   "Predictors",
@@ -55,8 +63,16 @@ mod_rec_step_ui <- function(id, step_num) {
 mod_rec_step_server <- function(id, step_num, data, pred_cols) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
-    rec_args <- shiny::reactiveValues()
 
+    # output$custom_predictors_ui <- shiny::renderUI({
+    #   shiny::req(input$step_predictors)
+    #   if ("Custom" %in% input$step_predictors) {
+    #     shiny::textInput(
+    #       ns("custom_predictors"),
+    #       "Predictors"
+    #     )
+    #   }
+    # })
     # output$step_ui <- shiny::renderUI({
     #   switch(input$step_select,
     #     "step_normalize" = shiny::numericInput(ns("norm_input"), "Normalize", 0.5),
@@ -73,10 +89,8 @@ mod_rec_step_server <- function(id, step_num, data, pred_cols) {
     # preset_cols <-
     #   shiny::reactive({
     #     shiny::req(input$step_select, data())
-    #     browser()
     #     cols <- pred_cols[[as.character(step_num - 1)]]
     #     rec_data <- data() |> dplyr::select(dplyr::any_of(cols))
-    #     # browser()
     #     step_select <- input$step_select
     #     dplyr::case_when(
     #       step_select %in% c("step_normalize", "step_log") ~ list(colnames(purrr::keep(rec_data, is.numeric))),
@@ -101,7 +115,7 @@ mod_rec_step_server <- function(id, step_num, data, pred_cols) {
 
     list(
       func = shiny::reactive(shiny::req(input$step_select)),
-      vars = shiny::reactive(shiny::req(input$step_predictors))
+      vars = shiny::reactive(c(input$step_predictors, input$custom_predictors))
     )
   })
 }

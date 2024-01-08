@@ -13,6 +13,9 @@ app_server <- function(input, output, session) {
     )
   })
 
+  data_import <- mod_data_import_server("mod_data_import")
+
+
   raw_data <- shiny::reactive({
     shiny::removeModal()
     data_import$dataset_choice()
@@ -20,9 +23,12 @@ app_server <- function(input, output, session) {
     bindEvent(data_import$confirm_data_import_button())
 
 
+  exp_id <- shiny::reactiveVal()
 
-  data_import <- mod_data_import_server("mod_data_import")
-
+  shiny::observe({
+    outcome_hash <- stringr::str_sub(rlang::hash(data_import$outcome()), 1, 5)
+    exp_id(paste0(data_import$dataset_hash(), outcome_hash))
+  })
 
   reactive_mode <-
     shiny::reactive({
@@ -39,12 +45,12 @@ app_server <- function(input, output, session) {
         rsample::training()
     })
 
-  saved_split_configs <- reactiveValues()
 
 
-  data_splits <- mod_data_split_server("mod_data_split", raw_data, data_import$outcome, saved_split_configs)
-
-
+  data_splits <- mod_data_split_server(
+    "mod_data_split", raw_data, data_import$outcome,
+    exp_id
+  )
 
 
 
@@ -59,27 +65,42 @@ app_server <- function(input, output, session) {
 
   saved_recipes <- reactiveValues()
 
-  reactive_recipe_prepped <- mod_preproc_server("mod_preproc", reactive_training, saved_recipes, data_import$outcome)
+  reactive_recipe_prepped <- mod_preproc_server(
+    "mod_preproc", reactive_training, saved_recipes, data_import$outcome,
+    exp_id
+  )
 
   saved_models <- reactiveValues()
 
-  reactive_model_spec <- mod_modeling_server("mod_modeling", reactive_mode, saved_models)
+  reactive_model_spec <- mod_modeling_server("mod_modeling", reactive_mode, saved_models, exp_id)
 
   saved_tune_configs <- reactiveValues()
 
   mod_tune_config_server(
-    "mod_tune_config", reactive_mode,
+    "mod_tune_config",
+    reactive_mode,
     reactive_model_spec,
-    saved_models,
-    saved_tune_configs,
-    reactive_training
+    reactive_training,
+    exp_id
   )
 
-  saved_wflowsets <- reactiveValues()
+  mod_metrics_server(
+    "mod_metrics",
+    reactive_mode,
+    exp_id
+  )
 
-  mod_saved_objects_server("mod_saved_objects", saved_split_configs, raw_data, saved_recipes, saved_models, saved_tune_configs, saved_wflowsets)
 
-  reactive_results <- mod_workflow_select_server("mod_workflow_select", saved_wflowsets, data_splits$reactive_resamples)
+  mod_saved_objects_server("mod_saved_objects", reactive_training, exp_id)
 
-  mod_results_server("mod_results", reactive_results)
+  exp_select <- mod_experiment_select_server("mod_workflow_select", exp_id)
+
+  results <- mod_current_results_server(
+    "mod_current_results", raw_data,
+    exp_select$exp_button, exp_select$selected_exp,
+    exp_select$selected_exp_id,
+    exp_id
+  )
+
+  mod_all_results_server("mod_all_results", results, exp_select$selected_exp_id, exp_id)
 }

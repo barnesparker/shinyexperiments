@@ -11,178 +11,209 @@ mod_saved_objects_ui <- function(id) {
   ns <- NS(id)
   tagList(
     shinyjs::useShinyjs(),
+    mod_object_table_ui(ns("object_table_split")),
+    mod_object_table_ui(ns("object_table_preproc")),
+    mod_object_table_ui(ns("object_table_model")),
+    mod_object_table_ui(ns("object_table_metrics")),
     bslib::layout_columns(
-      reactable::reactableOutput(ns("splits_rt")),
-      reactable::reactableOutput(ns("recipes_rt")),
-      reactable::reactableOutput(ns("models_rt"))
+      shiny::actionButton(ns("create_exp_button"), "Create Experiment",
+        icon = shiny::icon("bolt")
+      ),
+      shiny::actionButton(ns("delete_object_button"), "Delete Object(s)",
+        icon = shiny::icon("trash")
+      )
     ),
-    shiny::actionButton(ns("create_wflowset_button"), "Create Workflow Set")
+    mod_object_table_ui(ns("object_table_exp")),
   )
 }
 
 #' saved_objects Server Functions
 #'
 #' @noRd
-mod_saved_objects_server <- function(id, saved_split_configs, raw_data, saved_recipes, saved_models, saved_tune_configs, saved_wflowsets) {
+mod_saved_objects_server <- function(id, train_data, exp_id) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
+    exp_board <- get_exp_board()
 
-    output$splits_rt <- reactable::renderReactable({
-      tibble::tibble(
-        Split = names(saved_split_configs)
-      ) |>
-        reactable::reactable(
-          columns = list(
-            Split = reactable::colDef(
-              name = "Split"
-            )
-          ),
-          selection = "single",
-          onClick = "select",
-          details = function(index) {
-            split_id <- names(saved_split_configs)[index]
-            split_config <- saved_split_configs[[split_id]]
-            set.seed(split_config$seed)
-            split <- rsample::initial_split(
-              raw_data(),
-              prop = split_config$split_prop,
-              strata = split_config$strata
-            )
+    selected_splits <- mod_object_table_server(
+      "object_table_split", "split",
+      exp_id
+    )
 
-            resamples <-
-              rsample::vfold_cv(
-                rsample::training(split),
-                v = split_config$folds,
-                strata = split_config$strata,
-                repeats = split_config$repeats
-              )
+    selected_recipes <- mod_object_table_server(
+      "object_table_preproc", "preproc",
+      exp_id
+    )
+    selected_models <- mod_object_table_server(
+      "object_table_model", "model",
+      exp_id
+    )
 
-            # bslib::layout_columns(
-            shiny::tags$div(
-              shiny::tags$pre(paste(capture.output(
-                cat("Seed:", split_config$seed, "\n", "Strata:", split_config$strata, "\n"), split, resamples, type = "output"), collapse = "\n"))
-            )
-            # htmltools::div(
-            #   shiny::tags$pre(paste(capture.output(resamples, type = "message"), collapse = "\n"))
-            # )
-            # )
-          }
-        )
-    })
+    selected_metrics <- mod_object_table_server(
+      "object_table_metrics", "metrics",
+      exp_id
+    )
 
-    output$recipes_rt <- reactable::renderReactable({
-      tibble::tibble(
-        Recipe = names(saved_recipes)
-      ) |>
-        reactable::reactable(
-          columns = list(
-            Recipe = reactable::colDef(
-              name = "Recipe"
-            )
-          ),
-          selection = "multiple",
-          onClick = "select",
-          details = function(index) {
-            recipe_id <- names(saved_recipes)[index]
+    selected_exps <- mod_object_table_server(
+      "object_table_exp", "experiment",
+      exp_id
+    )
 
-            htmltools::div(
-              shiny::tags$pre(paste(capture.output(saved_recipes[[recipe_id]] |> recipes::prep(), type = "message"), collapse = "\n"))
-            )
-          }
-        )
-    })
 
-    output$models_rt <- reactable::renderReactable({
-      tibble::tibble(
-        Model = names(saved_models)
-      ) |>
-        reactable::reactable(
-          columns = list(
-            Model = reactable::colDef(
-              name = "Model"
-            )
-          ),
-          selection = "multiple",
-          onClick = "select",
-          details = function(index) {
-            model_id <- names(saved_models)[index]
-            htmltools::div(
-              htmltools::tags$pre(paste(utils::capture.output(saved_models[[model_id]], cat("Tune Grid\n"), saved_tune_configs[[model_id]]), collapse = "\n"))
-            )
-          }
-        )
-    })
 
 
     shiny::observe({
       shiny::showModal(
         shiny::modalDialog(
-          title = "Create Workflow Set",
+          title = "Create Experiment",
+          shiny::HTML("You will create an experiment with the following objects:<br><br>"),
+          print_selected_objects(
+            selected_splits(), selected_recipes(), selected_models(),
+            selected_metrics()
+          ),
+          shiny::HTML("<br><br>"),
           bslib::layout_columns(
-            shiny::textInput(ns("wflowset_name"), "Workflow Set Name", value = "workflowset"),
+            shiny::textInput(ns("exp_name"), "Experiment Name", value = "experiment1"),
             shiny::checkboxInput(ns("cross_checkbox"), "Cross?", value = T)
+          ),
+          shiny::textAreaInput(
+            ns("exp_description"),
+            "Description (optional)"
+          ),
+          shiny::selectizeInput(
+            ns("exp_tags"),
+            "Add Tags",
+            choices = get_exp_tags(),
+            multiple = T,
+            selected = NULL,
+            options = list(
+              plugins = list("remove_button"),
+              create = T
+            )
           ),
           footer = shiny::tagList(
             shiny::modalButton("Cancel"),
-            shiny::actionButton(ns("confirm_create_wflow"), "Create Workflow Set")
+            shiny::actionButton(ns("confirm_create_exp"), "Create Experiment")
           )
         )
       )
     }) |>
-      shiny::bindEvent(input$create_wflowset_button)
-
-    selected_splits <- shiny::reactive(shiny::reactiveValuesToList(saved_split_configs)[reactable::getReactableState("splits_rt", "selected", session = session)])
-    selected_recipes <- shiny::reactive(shiny::reactiveValuesToList(saved_recipes)[reactable::getReactableState("recipes_rt", "selected", session = session)])
-    selected_models <- shiny::reactive(shiny::reactiveValuesToList(saved_models)[reactable::getReactableState("models_rt", "selected", session = session)])
+      shiny::bindEvent(input$create_exp_button)
 
     shiny::observe({
-      if (any(
-        length(selected_recipes()) == 0,
-        length(selected_models()) == 0,
-        length(selected_splits()) == 0
+      shiny::showModal(
+        shiny::modalDialog(
+          title = "Delete Selected Objects",
+          shiny::HTML("Are you sure you want to delete the following objects?:<br><br>"),
+          print_selected_objects(
+            selected_splits(), selected_recipes(), selected_models(), selected_metrics(),
+            selected_exps()
+          ),
+          footer = shiny::tagList(
+            shiny::modalButton("Cancel"),
+            shiny::actionButton(ns("confirm_delete_button"), "Delete", icon = shiny::icon("trash"))
+          )
+        )
       )
-      ) {
-        shinyjs::disable("create_wflowset_button")
-      } else {
-        shinyjs::enable("create_wflowset_button")
-      }
-    })
+    }) |>
+      shiny::bindEvent(input$delete_object_button)
 
     shiny::observe({
       shiny::removeModal()
 
+      pins_to_delete <- c(
+        names(selected_recipes()), names(selected_models()),
+        names(selected_splits()), names(selected_exps()),
+        names(selected_metrics()),
+        get_tune_grids_from_models(names(selected_models())),
+        get_results_from_exp(names(selected_exps()))
+      )
+      pins::pin_delete(exp_board, names = pins_to_delete)
+    }) |>
+      shiny::bindEvent(input$confirm_delete_button)
+
+
+    shiny::observe({
+      if (
+        any(
+          length(selected_recipes()) == 0,
+          length(selected_models()) == 0,
+          # length(selected_metrics())
+          length(selected_splits()) != 1
+        )
+      ) {
+        shinyjs::disable("create_exp_button")
+      } else {
+        shinyjs::enable("create_exp_button")
+      }
+    })
+
+    shiny::observe({
+      if (
+        any(
+          length(selected_recipes()) > 0,
+          length(selected_models()) > 0,
+          length(selected_splits()) > 0,
+          length(selected_metrics()),
+          length(selected_exps()) > 0
+        )) {
+        shinyjs::enable("delete_object_button")
+      } else {
+        shinyjs::disable("delete_object_button")
+      }
+    })
+
+    reactive_exp <- shiny::reactive({
       wflow_set <-
         workflowsets::workflow_set(
-          preproc = selected_recipes(),
-          models = selected_models(),
+          preproc = selected_recipes() |> setNames(clean_object_names(names(selected_recipes()))),
+          models = selected_models() |> setNames(clean_object_names(names(selected_models()))),
           cross = input$cross_checkbox
         ) |>
         workflowsets::option_add(
           grid = 20
         )
 
+      exp_board <- get_exp_board()
+      saved_tune_configs <- get_saved_objects_list(exp_board, "tune", exp_id())
 
-      for (grid in names(saved_tune_configs)) {
+      tune_grids <- get_tune_grids_from_models(names(selected_models()))
+
+      for (grid in tune_grids) {
         for (wflow_id in wflow_set$wflow_id) {
-          if (stringr::str_ends(wflow_id, paste0("_", grid))) {
+          if (stringr::str_ends(wflow_id, clean_object_names(grid))) {
             wflow_set <- wflow_set |>
               workflowsets::option_add(
-                grid = saved_tune_configs[[grid]],
+                grid = exp_board |> pins::pin_read(grid),
                 id = wflow_id
               )
           }
         }
       }
 
+      exp_object <- list(
+        Splits = names(selected_splits()),
+        Models = names(selected_models()),
+        Preprocessors = names(selected_recipes()),
+        Metrics = names(selected_metrics()),
+        wflow_set = wflow_set
+      )
 
-      saved_wflowsets[[input$wflowset_name]] <- wflow_set
+      class(exp_object) <- "experiment"
+      exp_object
+    })
+
+
+    shiny::observe({
+      shiny::removeModal()
+
+
+      save_exp_config(reactive_exp(), exp_id(), input$exp_name,
+        description = input$exp_description,
+        tags = input$exp_tags,
+        config_type = "experiment"
+      )
     }) |>
-      shiny::bindEvent(input$confirm_create_wflow)
+      shiny::bindEvent(input$confirm_create_exp)
   })
 }
-
-## To be copied in the UI
-# mod_saved_objects_ui("saved_objects_1")
-
-## To be copied in the server
-# mod_saved_objects_server("saved_objects_1")

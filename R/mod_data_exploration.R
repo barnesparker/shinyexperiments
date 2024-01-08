@@ -17,7 +17,18 @@ mod_data_exploration_ui <- function(id) {
     ),
     bslib::layout_columns(
       bslib::card(
-        shiny::plotOutput(ns("missing_plot")),
+        bslib::layout_sidebar(
+          shiny::plotOutput(ns("missing_plot")),
+          sidebar = bslib::sidebar(
+            bslib::input_switch(
+              ns("missing_only_switch"),
+              "Missing Only?",
+              value = F
+            ),
+            open = "closed",
+            position = "right"
+          )
+        ),
         full_screen = T
       ),
       bslib::card(
@@ -39,18 +50,16 @@ mod_data_exploration_server <- function(id, reactive_training) {
 
     output$data_table <-
       DT::renderDT({
-        DT::datatable(
-          reactive_training()
-        )
+        reactive_training()
       })
 
     output$missing_plot <- shiny::renderPlot({
       reactive_training() |>
-        DataExplorer::plot_missing() +
-        ggplot2::theme_minimal() +
-        ggplot2::theme(
-          axis.text.y = ggplot2::element_text(size = 10, color = "white"),
-        )
+        DataExplorer::plot_missing(missing_only = input$missing_only_switch, ) +
+        ggplot2::theme_minimal()
+        # ggplot2::theme(
+        #   axis.text.y = ggplot2::element_text(size = 10, color = "white"),
+        # )
     })
 
     output$corr_plot <- shiny::renderPlot({

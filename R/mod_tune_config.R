@@ -45,10 +45,14 @@ mod_tune_config_ui <- function(id) {
       # )
     ),
     shiny::verbatimTextOutput(ns("tune_config_preview")),
-    shiny::actionButton(
-      ns("save_tune_config_button"),
-      "Save Tune Config",
-      icon = shiny::icon("save")
+    # shiny::actionButton(
+    #   ns("save_tune_config_button"),
+    #   "Save Tune Config",
+    #   icon = shiny::icon("save")
+    # ),
+    mod_save_object_dialog_ui(
+      ns("save_object_dialog_tune"),
+      "Save Tune Config"
     )
   )
 }
@@ -56,15 +60,40 @@ mod_tune_config_ui <- function(id) {
 #' tune_config Server Functions
 #'
 #' @noRd
-mod_tune_config_server <- function(id, model_mode, model_spec, saved_models, saved_tune_configs, train_data) {
+mod_tune_config_server <- function(id, model_mode, model_spec, train_data, exp_id) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
+
+    exp_board <- get_exp_board()
+
+    saved_models <-
+      reactivePoll(1000, session,
+        checkFunc = function() {
+          if (is.null(exp_id())) return(NULL)
+
+          exp_board |>
+            get_saved_objects_list("model", shiny::req(exp_id())) |>
+            length()
+        },
+        valueFunc = function() {
+          models <-
+            exp_board |>
+            get_saved_objects_list("model", shiny::req(exp_id()))
+
+          names(models) <- models |>
+            clean_object_names()
+
+          models
+        }
+      )
+
+
     output$model_config_ui <-
       shiny::renderUI({
         shiny::selectInput(
           ns("model_config"),
           "Select Model Config",
-          choices = names(saved_models)
+          choices = saved_models()
         )
       })
 
@@ -98,36 +127,15 @@ mod_tune_config_server <- function(id, model_mode, model_spec, saved_models, sav
         }
       })
 
-    # shiny::observe({
-    #   if (model_mode() == "classification") {
-    #     shiny::updateSelectInput(
-    #       session = session,
-    #       inputId = "metrics",
-    #       choices = c(
-    #         "Accuracy" = "accuracy",
-    #         "AUC" = "roc_auc",
-    #         "F1" = "f_meas",
-    #         "Kappa" = "kappa",
-    #         "MCC" = "mcc"
-    #       ),
-    #       selected = c("accuracy", "roc_auc")
-    #     )
-    #   } else {
-    #     shiny::updateSelectInput(
-    #       session = session,
-    #       inputId = "metrics",
-    #       choices = c(
-    #         "RMSE" = "rmse",
-    #         "RSquared" = "rsq",
-    #         "MAE" = "mae"
-    #       ),
-    #       selected = c("rmse", "rsq")
-    #     )
-    #   }
-    # })
-
     tunable_param_list <- shiny::reactive({
-      saved_models[[shiny::req(input$model_config)]]$args |>
+
+      shiny::req(input$model_config)
+      exp_board <- get_exp_board()
+      reactive_model <-
+        exp_board |>
+        pins::pin_reactive_read(input$model_config)
+
+      reactive_model()$args |>
         purrr::map(rlang::as_label) |>
         purrr::keep(~ .x == "tune()")
     })
@@ -151,7 +159,6 @@ mod_tune_config_server <- function(id, model_mode, model_spec, saved_models, sav
                 eval()
 
               tune_param_id <- paste("mod_tune", tune_param, "range", sep = "_")
-              # browser()
               tune_param_ui <- mod_tune_param_ui(
                 ns(tune_param_id), tune_param, input$tune_grid_select,
                 default_param_vals
@@ -180,7 +187,6 @@ mod_tune_config_server <- function(id, model_mode, model_spec, saved_models, sav
 
         shiny::req(length(tune_param_list) > 0)
 
-        # browser()
 
         levels_vec <-
           tune_param_list |>
@@ -209,30 +215,9 @@ mod_tune_config_server <- function(id, model_mode, model_spec, saved_models, sav
       })
 
 
-    shiny::observe({
-      shiny::showModal(
-        shiny::modalDialog(
-          title = paste0("Save Tune Configuration for model spec: ", input$model_config),
-          # shiny::textInput(ns("tune_config_name"), "Tune Configuration Name"),
-          footer = shiny::tagList(
-            shiny::modalButton("Cancel"),
-            shiny::actionButton(
-              ns("confirm_save_button"),
-              "Save Configuration",
-              icon = shiny::icon("save")
-            )
-          )
-        )
-      )
-    }) |>
-      shiny::bindEvent(input$save_tune_config_button)
+    mod_save_object_dialog_server("save_object_dialog_tune", "Tune Config", reactive_tune_config, exp_id,
+                                  object_name = shiny::reactive(clean_object_names(input$model_config)))
 
-    shiny::observe({
-      shiny::removeModal()
-
-      saved_tune_configs[[input$model_config]] <- reactive_tune_config()
-    }) |>
-      shiny::bindEvent(input$confirm_save_button)
 
 
 

@@ -21,13 +21,15 @@ mod_data_split_ui <- function(id) {
           min = 0,
           max = 1
         ),
-        shiny::numericInput(
-          ns("seed"),
-          "Seed",
-          value = 123,
-          min = 1
+        bslib::layout_columns(
+          shiny::numericInput(
+            ns("seed"),
+            "Seed",
+            value = 123,
+            min = 1
+          ),
+          shiny::uiOutput(ns("strata_ui"))
         ),
-        shiny::uiOutput(ns("strata_ui")),
         shiny::verbatimTextOutput(ns("preview_splits"))
       ),
       bslib::accordion_panel(
@@ -49,8 +51,8 @@ mod_data_split_ui <- function(id) {
         shiny::verbatimTextOutput(ns("preview_resamples"))
       ),
     ),
-    shiny::actionButton(
-      ns("save_split_button"),
+    mod_save_object_dialog_ui(
+      ns("save_object_dialog_split"),
       "Save Splitting Configuration"
     )
   )
@@ -59,9 +61,25 @@ mod_data_split_ui <- function(id) {
 #' data_split Server Functions
 #'
 #' @noRd
-mod_data_split_server <- function(id, raw_data, outcome, saved_split_configs) {
+mod_data_split_server <- function(id, raw_data, outcome,
+                                  exp_id) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
+
+
+    # iv <- shinyvalidate::InputValidator$new()
+    #
+    # iv$add_rule("seed", shinyvalidate::sv_required())
+    # iv$add_rule("seed", shinyvalidate::sv_integer())
+    #
+    # iv$add_rule("folds", shinyvalidate::sv_required())
+    # iv$add_rule("folds", shinyvalidate::sv_integer())
+    #
+    # iv$add_rule("repeats", shinyvalidate::sv_required())
+    # iv$add_rule("repeats", shinyvalidate::sv_integer())
+    #
+    # iv$enable()
+
 
     output$strata_ui <- shiny::renderUI({
       shiny::selectInput(
@@ -84,6 +102,7 @@ mod_data_split_server <- function(id, raw_data, outcome, saved_split_configs) {
 
     reactive_split <-
       shiny::reactive({
+        # req(iv$is_valid())
         set.seed(input$seed)
         raw_data() |>
           rsample::initial_split(
@@ -99,6 +118,7 @@ mod_data_split_server <- function(id, raw_data, outcome, saved_split_configs) {
 
     reactive_resamples <-
       shiny::reactive({
+        # req(iv$is_valid())
         set.seed(input$seed)
         rsample::training(reactive_split()) |>
           rsample::vfold_cv(
@@ -111,6 +131,22 @@ mod_data_split_server <- function(id, raw_data, outcome, saved_split_configs) {
     output$preview_resamples <- shiny::renderPrint({
       reactive_resamples()
     })
+
+
+    mod_save_object_dialog_server(
+      "save_object_dialog_split",
+      type = "Splitting Configuration",
+      shiny::reactive({
+        list(
+          split_prop = input$split_prop,
+          folds = input$folds,
+          strata = input$strata,
+          repeats = input$repeats,
+          seed = input$seed
+        )
+      }),
+      exp_id
+    )
 
     shiny::observe({
       shiny::showModal(
@@ -136,13 +172,15 @@ mod_data_split_server <- function(id, raw_data, outcome, saved_split_configs) {
 
     shiny::observe({
       shiny::removeModal()
-      saved_split_configs[[input$split_config_name]] <- list(
-        split_prop = input$split_prop,
-        folds = input$folds,
-        strata = input$strata,
-        repeats = input$repeats,
-        seed = input$seed
-      )
+      split_config <-
+        list(
+          split_prop = input$split_prop,
+          strata = input$strata,
+          folds = input$folds,
+          repeats = input$repeats,
+          seed = input$seed
+        )
+      save_exp_config(split_config, exp_id(), input$split_config_name, config_type = "split", pin_type = "json")
     }) |>
       shiny::bindEvent(input$confirm_save_button)
 

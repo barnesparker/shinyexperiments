@@ -28,10 +28,9 @@ mod_modeling_ui <- function(id) {
       )
     ),
     shiny::verbatimTextOutput(ns("model_preview")),
-    shiny::actionButton(
-      ns("save_model_button"),
-      "Save Model",
-      icon = shiny::icon("save")
+    mod_save_object_dialog_ui(
+      ns("save_object_dialog_model"),
+      "Save Model"
     )
   )
 }
@@ -39,7 +38,7 @@ mod_modeling_ui <- function(id) {
 #' modeling Server Functions
 #'
 #' @noRd
-mod_modeling_server <- function(id, model_mode, saved_models) {
+mod_modeling_server <- function(id, model_mode, saved_models, exp_id) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
     output$model_selection_ui <-
@@ -66,30 +65,38 @@ mod_modeling_server <- function(id, model_mode, saved_models) {
         reactive_model_spec()
       })
 
-    shiny::observe({
-      shiny::showModal(
-        shiny::modalDialog(
-          title = "Save Model",
-          shiny::textInput(ns("model_name"), "Model Name", value = "model"),
-          footer = shiny::tagList(
-            shiny::modalButton("Cancel"),
-            shiny::actionButton(
-              ns("confirm_save_button"),
-              "Save Model",
-              icon = shiny::icon("save")
-            )
-          )
-        )
-      )
-    }) |>
-      shiny::bindEvent(input$save_model_button)
+    mod_save_object_dialog_server("save_object_dialog_model", "Model", reactive_model_spec, exp_id)
 
-    shiny::observe({
-      shiny::removeModal()
 
-      saved_models[[input$model_name]] <- reactive_model_spec()
-    }) |>
-      shiny::bindEvent(input$confirm_save_button)
+    # shiny::observe({
+      # shiny::removeModal()
+
+      # saved_models[[input$model_name]] <- reactive_model_spec()
+      #
+      # params_list <- shiny::reactiveValuesToList(param_inputs)
+      #
+      # params_list <-
+      #   params_list[names(params_list) %in% available_args()] |>
+      #   de_reactive()
+      #
+      # params_list <-
+      #   params_list |>
+      #   purrr::map_if(
+      #     ~ is.call(.x),
+      #     ~ .x |> rlang::as_label()
+      #   )
+      #
+      # model_config <-
+      #   list(
+      #     model_selection = input$model_selection,
+      #     engine = input$engine,
+      #     model_mode = model_mode(),
+      #     params_list = params_list
+      #   )
+
+      # save_exp_config(reactive_model_spec(), exp_id(), input$model_name, config_type = "model")
+    # }) |>
+      # shiny::bindEvent(input$confirm_save_button)
 
 
 
@@ -101,8 +108,6 @@ mod_modeling_server <- function(id, model_mode, saved_models) {
         params_list <-
           params_list[names(params_list) %in% available_args()] |>
           de_reactive()
-
-        # browser()
 
         do.call(
           shiny::req(input$model_selection),
@@ -159,7 +164,6 @@ mod_modeling_server <- function(id, model_mode, saved_models) {
         #   # tidyr$unnest(parameters)
         #   dplyr::pull(parameters)
 
-        # browser()
 
         model_args <- names(model_args[!names(model_args) %in% c("mode", "engine")])
 
@@ -181,10 +185,6 @@ mod_modeling_server <- function(id, model_mode, saved_models) {
             purrr::map(
               available_args(),
               \(arg) {
-                # browser()
-                # default_param_values <-
-                #   get(arg, envir = dials) |>
-                #   formals()
 
                 param_id <- paste("mod", input$model_selection, arg, sep = "_")
                 param_ui <- mod_hyperparam_ui(ns(param_id), arg)
