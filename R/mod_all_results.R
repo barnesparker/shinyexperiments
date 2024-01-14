@@ -45,14 +45,15 @@ mod_all_results_server <- function(id, current_results, cur_exp, exp_id) {
             length()
         },
         valueFunc = function() {
-          shiny::req(exp_id())
+          results_list <- get_saved_objects_list(exp_board, "results", shiny::req(exp_id()))
+          # shiny::req(results_list)
           out <-
-            get_saved_objects_list(exp_board, "results", exp_id()) |>
+            results_list |>
             purrr::map(
               ~ pins::pin_read(exp_board, .x) |>
                 workflowsets::collect_metrics() |>
                 dplyr::mutate(
-                  experiment = clean_object_names(clean_object_names(.x)),
+                  experiment = clean_object_names(.x),
                   .before = 1
                 )
             ) |>

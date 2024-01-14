@@ -38,7 +38,7 @@ mod_data_split_ui <- function(id) {
           shiny::numericInput(
             ns("folds"),
             "Folds",
-            value = 10,
+            value = 5,
             min = 2
           ),
           shiny::numericInput(

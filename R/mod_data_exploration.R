@@ -13,7 +13,8 @@ mod_data_exploration_ui <- function(id) {
     bslib::card(
       # reactable::reactableOutput(ns("data_gt")),
       DT::DTOutput(ns("data_table")),
-      full_screen = T
+      full_screen = T,
+      max_height = "350px"
     ),
     bslib::layout_columns(
       bslib::card(
@@ -29,11 +30,13 @@ mod_data_exploration_ui <- function(id) {
             position = "right"
           )
         ),
-        full_screen = T
+        full_screen = T,
+        max_height = "300px"
       ),
       bslib::card(
         shiny::plotOutput(ns("corr_plot")),
-        full_screen = T
+        full_screen = T,
+        max_height = "300px"
       )
     )
   )
@@ -53,20 +56,27 @@ mod_data_exploration_server <- function(id, reactive_training) {
         reactive_training()
       })
 
+
     output$missing_plot <- shiny::renderPlot({
       reactive_training() |>
-        DataExplorer::plot_missing(missing_only = input$missing_only_switch, ) +
-        ggplot2::theme_minimal()
-        # ggplot2::theme(
-        #   axis.text.y = ggplot2::element_text(size = 10, color = "white"),
-        # )
+        DataExplorer::plot_missing(
+          missing_only = input$missing_only_switch
+        ) +
+        # ggplot2::theme_minimal()
+        ggplot2::theme(
+          legend.title = ggplot2::element_blank()
+        )
     })
 
     output$corr_plot <- shiny::renderPlot({
       reactive_training() |>
         tidyr::drop_na() |>
-        DataExplorer::plot_correlation() +
-        ggplot2::theme_minimal() +
+        DataExplorer::plot_correlation(
+          theme_config = list(
+            axis.text.x = ggplot2::element_text(angle = 45, vjust = .5)
+          )
+        ) +
+        # ggplot2::theme_minimal() +
         ggplot2::theme(
           axis.text.y = ggplot2::element_text(size = 10),
         )

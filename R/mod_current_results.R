@@ -98,7 +98,7 @@ mod_current_results_server <- function(id, raw_data, exp_button, selected_experi
 
     results_wide <-
       shiny::reactive({
-        workflowsets::collect_metrics(map_results()) |>
+        workflowsets::collect_metrics(shiny::req(map_results())) |>
           tidyr::pivot_wider(
             id_cols = -std_err,
             names_from = ".metric",
