@@ -51,18 +51,14 @@ mod_data_split_ui <- function(id) {
         shiny::verbatimTextOutput(ns("preview_resamples"))
       ),
     ),
-    mod_save_object_dialog_ui(
-      ns("save_object_dialog_split"),
-      "Save Splitting Configuration"
-    )
+    mod_save_object_dialog_ui(ns("save_object_dialog_split"))
   )
 }
 
 #' data_split Server Functions
 #'
 #' @noRd
-mod_data_split_server <- function(id, raw_data, outcome,
-                                  exp_id) {
+mod_data_split_server <- function(id, raw_data, outcome) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -92,7 +88,7 @@ mod_data_split_server <- function(id, raw_data, outcome,
 
     reactive_strata <-
       shiny::reactive({
-        if (shiny::req(input$strata) == "None") {
+        if (input$strata == "None") {
           NULL
         } else {
           input$strata
@@ -106,14 +102,14 @@ mod_data_split_server <- function(id, raw_data, outcome,
         set.seed(input$seed)
         raw_data() |>
           rsample::initial_split(
-            prop = shiny::req(input$split_prop),
+            prop = input$split_prop,
             strata = reactive_strata()
           )
       }) |>
       shiny::debounce(1000)
 
     output$preview_splits <- shiny::renderPrint({
-      reactive_split()
+      shiny::req(reactive_split())
     })
 
     reactive_resamples <-
@@ -132,57 +128,24 @@ mod_data_split_server <- function(id, raw_data, outcome,
       reactive_resamples()
     })
 
+    reactive_split_config <-
+      shiny::reactive({
+        split_config(
+          split_prop = input$split_prop,
+          strata = reactive_strata(),
+          folds = input$folds,
+          repeats = input$repeats,
+          seed = input$seed,
+          exp_id = get_golem_config("exp_id")
+        )
+      })
+
 
     mod_save_object_dialog_server(
       "save_object_dialog_split",
       type = "Splitting Configuration",
-      shiny::reactive({
-        list(
-          split_prop = input$split_prop,
-          folds = input$folds,
-          strata = input$strata,
-          repeats = input$repeats,
-          seed = input$seed
-        )
-      }),
-      exp_id
+      reactive_split_config
     )
-
-    shiny::observe({
-      shiny::showModal(
-        shiny::modalDialog(
-          title = "Save Split + Resampling Configuration",
-          shiny::textInput(
-            ns("split_config_name"),
-            "Split Configuration Name",
-            value = "split1"
-          ),
-          footer = shiny::tagList(
-            shiny::modalButton("Cancel"),
-            shiny::actionButton(
-              ns("confirm_save_button"),
-              "Save Configuration",
-              icon = shiny::icon("save")
-            )
-          )
-        )
-      )
-    }) |>
-      shiny::bindEvent(input$save_split_button)
-
-    shiny::observe({
-      shiny::removeModal()
-      split_config <-
-        list(
-          split_prop = input$split_prop,
-          strata = input$strata,
-          folds = input$folds,
-          repeats = input$repeats,
-          seed = input$seed
-        )
-      save_exp_config(split_config, exp_id(), input$split_config_name, config_type = "split", pin_type = "json")
-    }) |>
-      shiny::bindEvent(input$confirm_save_button)
 
 
     list(
@@ -191,9 +154,3 @@ mod_data_split_server <- function(id, raw_data, outcome,
     )
   })
 }
-
-## To be copied in the UI
-# mod_data_split_ui("data_split_1")
-
-## To be copied in the server
-# mod_data_split_server("data_split_1")

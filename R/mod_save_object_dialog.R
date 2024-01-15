@@ -7,7 +7,7 @@
 #' @noRd
 #'
 #' @importFrom shiny NS tagList
-mod_save_object_dialog_ui <- function(id, label) {
+mod_save_object_dialog_ui <- function(id, label = "Save") {
   ns <- NS(id)
   tagList(
     shinyjs::useShinyjs(),
@@ -22,7 +22,8 @@ mod_save_object_dialog_ui <- function(id, label) {
 #' save_object_dialog Server Functions
 #'
 #' @noRd
-mod_save_object_dialog_server <- function(id, type, reactive_object, exp_id, object_name = shiny::reactive(NULL),
+mod_save_object_dialog_server <- function(id, type, reactive_config,
+                                          object_name = shiny::reactive(NULL),
                                           enable_var = shiny::reactiveVal(T)) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
@@ -49,9 +50,11 @@ mod_save_object_dialog_server <- function(id, type, reactive_object, exp_id, obj
     output$object_preview <-
       shiny::renderPrint({
         # if (type == "Recipe") {
-        #   shiny::tags$pre(paste(capture.output(reactive_object(), type = "message"), collapse = "\n"))
+        #   shiny::tags$pre(paste(capture.output(reactive_config(), type = "message"), collapse = "\n"))
         # } else {
-          print(reactive_object())
+          # print(reactive_config())
+        reactive_config()
+          # build_object_from_config()
         # }
       })
 
@@ -66,7 +69,7 @@ mod_save_object_dialog_server <- function(id, type, reactive_object, exp_id, obj
       shiny::showModal(
         shiny::modalDialog(
           title = title,
-          shiny::verbatimTextOutput(ns("object_preview")),
+          # shiny::verbatimTextOutput(ns("object_preview")),
           if (!type %in% c("Tune Config", "Results")) {
             shiny::textInput(ns("object_name"), "Name", value = config_type)
           },
@@ -104,8 +107,11 @@ mod_save_object_dialog_server <- function(id, type, reactive_object, exp_id, obj
 
       config_name <- ifelse(type %in% c("Tune Config", "Results"), object_name(), input$object_name)
       pin_type <- ifelse(type == "Results", "csv", "rds")
-      save_exp_config(reactive_object(), exp_id(), config_name, input$object_description,
-        tags = input$object_tags, config_type = config_type, pin_type = pin_type
+      save_exp_config(
+        reactive_config(),
+        config_name,
+        description = dplyr::coalesce(input$object_description, NA_character_),
+        tags = dplyr::coalesce(input$object_tags, NA_character_)
       )
     }) |>
       shiny::bindEvent(input$confirm_save_button)

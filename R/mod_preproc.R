@@ -61,7 +61,7 @@ mod_preproc_ui <- function(id) {
 #' preproc Server Functions
 #'
 #' @noRd
-mod_preproc_server <- function(id, reactive_training, saved_recipes, outcome, exp_id) {
+mod_preproc_server <- function(id, reactive_training, outcome) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -142,38 +142,25 @@ mod_preproc_server <- function(id, reactive_training, saved_recipes, outcome, ex
     }) |>
       shiny::bindEvent(input$remove_step)
 
+    reactive_recipe_config <-
+      shiny::reactive({
+        preproc_config(
+          predictors = shiny::req(input$predictor_select),
+          preproc_steps = preproc_steps |>
+            shiny::reactiveValuesToList() |>
+            de_reactive(),
+          exp_id = get_golem_config("exp_id")
+        )
 
-
-    mod_save_object_dialog_server("save_object_dialog_recipe", "Recipe", reactive_recipe, exp_id)
-
-    # shiny::observe({
-    #   shiny::removeModal()
-    #
-    #   # saved_recipes[[input$recipe_name]] <- reactive_recipe()
-    #
-    #   # recipe_config <-
-    #   #   list(
-    #   #     formula = Reduce(paste, deparse(reactive_formula())),
-    #   #     preproc_steps = shiny::reactiveValuesToList(preproc_steps) |> de_reactive()
-    #   #   )
-    #
-    #   save_exp_config(reactive_recipe(), exp_id(), input$recipe_name, config_type = "preproc")
-    #
-    # }) |>
-    #   shiny::bindEvent(input$confirm_save_button)
+      })
 
 
 
+    mod_save_object_dialog_server("save_object_dialog_recipe", "Recipe", reactive_recipe_config)
 
     reactive_formula <-
       shiny::reactive({
-        as.formula(
-          paste0(
-            outcome(),
-            " ~ ",
-            paste0(shiny::req(input$predictor_select), collapse = " + ")
-          )
-        )
+        reactive_recipe_config()@formula
       })
 
     output$formula_preview <-
@@ -184,14 +171,8 @@ mod_preproc_server <- function(id, reactive_training, saved_recipes, outcome, ex
 
     reactive_recipe <-
       shiny::reactive({
-
-        recipe_steps <- shiny::reactiveValuesToList(preproc_steps)
-
-        recipes::recipe(
-          shiny::req(reactive_formula()),
-          data = reactive_training()
-        ) |>
-          apply_steps(recipe_steps)
+        reactive_recipe_config() |>
+          build_object_from_config(reactive_training())
       })
 
     reactive_recipe_prepped <-
@@ -227,9 +208,3 @@ mod_preproc_server <- function(id, reactive_training, saved_recipes, outcome, ex
     reactive_recipe_prepped
   })
 }
-
-## To be copied in the UI
-# mod_preproc_ui("preproc_1")
-
-## To be copied in the server
-# mod_preproc_server("preproc_1")

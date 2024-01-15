@@ -2,6 +2,7 @@ default:
   golem_name: shinyexperiments
   golem_version: 0.0.0.9000
   app_prod: no
+  data_board: !expr pins::board_folder("data", versioned = T)
 production:
   app_prod: yes
 dev:

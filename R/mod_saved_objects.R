@@ -30,33 +30,28 @@ mod_saved_objects_ui <- function(id) {
 #' saved_objects Server Functions
 #'
 #' @noRd
-mod_saved_objects_server <- function(id, train_data, exp_id) {
+mod_saved_objects_server <- function(id, train_data) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
     exp_board <- get_exp_board()
 
     selected_splits <- mod_object_table_server(
-      "object_table_split", "split",
-      exp_id
+      "object_table_split", "split"
     )
 
     selected_recipes <- mod_object_table_server(
-      "object_table_preproc", "preproc",
-      exp_id
+      "object_table_preproc", "preproc"
     )
     selected_models <- mod_object_table_server(
-      "object_table_model", "model",
-      exp_id
+      "object_table_model", "model"
     )
 
     selected_metrics <- mod_object_table_server(
-      "object_table_metrics", "metrics",
-      exp_id
+      "object_table_metrics", "metrics"
     )
 
     selected_exps <- mod_object_table_server(
-      "object_table_exp", "experiment",
-      exp_id
+      "object_table_exp", "experiment"
     )
 
 

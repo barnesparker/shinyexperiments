@@ -25,7 +25,7 @@ golem::add_module(name = "name_of_module2", with_test = F) # Name of the module
 
 ## Add helper functions ----
 ## Creates fct_* and utils_*
-golem::add_fct("exp_class", with_test = TRUE)
+golem::add_fct("ingest_data_source", with_test = TRUE)
 golem::add_utils("helpers2", with_test = TRUE)
 
 ## External resources

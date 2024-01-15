@@ -23,12 +23,8 @@ mod_metrics_ui <- function(id) {
       )
     ),
     shiny::verbatimTextOutput(ns("metrics_preview")),
-    mod_save_object_dialog_ui(
-      ns("save_object_dialog_metrics"),
-      "Save Metric Set"
-    )
+    mod_save_object_dialog_ui(ns("save_object_dialog_metrics"))
   )
-
 }
 
 #' metrics Server Functions
@@ -50,18 +46,20 @@ mod_metrics_server <- function(id, model_mode, exp_id) {
       )
     })
 
-    reactive_metric_set <-
+    reactive_metrics_config <-
       shiny::reactive({
         shiny::req(input$metrics_select)
-        # box::use(yardstick)
-        library(yardstick)
-        metrics_funcs <- input$metrics_select |>
-          stringr::str_flatten(collapse = ";") |>
-          rlang::parse_exprs()
+        metrics_config(
+          metrics = as.list(input$metrics_select),
+          exp_id = get_golem_config("exp_id")
+        )
+      })
 
 
-          # purrr::map(~get(.x, envir = yardstick))
-        yardstick::metric_set(!!!metrics_funcs)
+    reactive_metric_set <-
+      shiny::reactive({
+        reactive_metrics_config() |>
+          build_object_from_config()
       })
 
     output$metrics_preview <-
@@ -74,10 +72,8 @@ mod_metrics_server <- function(id, model_mode, exp_id) {
     mod_save_object_dialog_server(
       "save_object_dialog_metrics",
       "Metrics",
-      reactive_metric_set,
-      exp_id
+      reactive_metrics_config
     )
-
   })
 }
 

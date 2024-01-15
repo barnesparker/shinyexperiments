@@ -34,33 +34,16 @@ mod_tune_config_ui <- function(id) {
         "Tune Parameters",
         shiny::uiOutput(ns("tune_param_ui"))
       )
-      # bslib::accordion_panel(
-      #   "Metrics Configuration",
-      #   shiny::selectInput(
-      #     inputId = ns("metrics"),
-      #     label = "Metrics",
-      #     choices = NULL,
-      #     multiple = T
-      #   )
-      # )
     ),
     shiny::verbatimTextOutput(ns("tune_config_preview")),
-    # shiny::actionButton(
-    #   ns("save_tune_config_button"),
-    #   "Save Tune Config",
-    #   icon = shiny::icon("save")
-    # ),
-    mod_save_object_dialog_ui(
-      ns("save_object_dialog_tune"),
-      "Save Tune Config"
-    )
+    mod_save_object_dialog_ui(ns("save_object_dialog_tune"))
   )
 }
 
 #' tune_config Server Functions
 #'
 #' @noRd
-mod_tune_config_server <- function(id, model_mode, model_spec, train_data, exp_id) {
+mod_tune_config_server <- function(id, model_mode, model_spec, train_data) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -69,16 +52,22 @@ mod_tune_config_server <- function(id, model_mode, model_spec, train_data, exp_i
     saved_models <-
       reactivePoll(1000, session,
         checkFunc = function() {
-          if (is.null(exp_id())) return(NULL)
+          exp_id <- get_golem_config("exp_id")
+
+          if (is.null(exp_id)) {
+            return(NULL)
+          }
 
           exp_board |>
-            get_saved_objects_list("model", shiny::req(exp_id())) |>
+            get_saved_objects_list("model", exp_id) |>
             length()
         },
         valueFunc = function() {
+          exp_id <- get_golem_config("exp_id")
+
           models <-
             exp_board |>
-            get_saved_objects_list("model", shiny::req(exp_id()))
+            get_saved_objects_list("model", exp_id)
 
           names(models) <- models |>
             clean_object_names()
@@ -128,14 +117,12 @@ mod_tune_config_server <- function(id, model_mode, model_spec, train_data, exp_i
       })
 
     tunable_param_list <- shiny::reactive({
-
       shiny::req(input$model_config)
-      exp_board <- get_exp_board()
       reactive_model <-
         exp_board |>
         pins::pin_reactive_read(input$model_config)
 
-      reactive_model()$args |>
+      reactive_model()@params |>
         purrr::map(rlang::as_label) |>
         purrr::keep(~ .x == "tune()")
     })
@@ -171,11 +158,6 @@ mod_tune_config_server <- function(id, model_mode, model_spec, train_data, exp_i
         shiny::tagList(!!!tune_inputs)
       })
 
-    # reactive_metric_set <-
-    #   shiny::reactive({
-    #     do.call(yardstick$metric_set, list(input$metrics))
-    #   })
-
     reactive_tune_config <-
       shiny::reactive({
         box::use(dials)
@@ -186,7 +168,6 @@ mod_tune_config_server <- function(id, model_mode, model_spec, train_data, exp_i
           de_reactive()
 
         shiny::req(length(tune_param_list) > 0)
-
 
         levels_vec <-
           tune_param_list |>
@@ -206,17 +187,24 @@ mod_tune_config_server <- function(id, model_mode, model_spec, train_data, exp_i
         } else {
           tune_param_list <- c(tune_param_list, list(size = shiny::req(input$grid_size)))
         }
-        do.call(input$tune_grid_select, tune_param_list, envir = dials)
+
+        tune_config(
+          grid = get(input$tune_grid_select, envir = dials),
+          params = tune_param_list,
+          exp_id = get_golem_config("exp_id")
+        )
       })
 
     output$tune_config_preview <-
       shiny::renderPrint({
-        reactive_tune_config()
+        reactive_tune_config() |>
+          build_object_from_config()
       })
 
 
-    mod_save_object_dialog_server("save_object_dialog_tune", "Tune Config", reactive_tune_config, exp_id,
-                                  object_name = shiny::reactive(clean_object_names(input$model_config)))
+    mod_save_object_dialog_server("save_object_dialog_tune", "Tune Config", reactive_tune_config,
+      object_name = shiny::reactive(clean_object_names(input$model_config))
+    )
 
 
 

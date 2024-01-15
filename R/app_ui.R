@@ -46,7 +46,7 @@ app_ui <- function(request) {
         navset_underline(
           nav_panel(
             "Run",
-            mod_experiment_select_ui("mod_workflow_select")
+            # mod_experiment_select_ui("mod_workflow_select")
           )
         )
       ),
@@ -67,7 +67,7 @@ app_ui <- function(request) {
         ),
         nav_panel(
           "Saved Objects",
-          mod_saved_objects_ui("mod_saved_objects")
+          # mod_saved_objects_ui("mod_saved_objects")
         )
       )
     ),

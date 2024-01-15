@@ -40,7 +40,6 @@ mod_data_import_server <- function(id) {
 
     data_board <- golem::get_golem_options("data_board")
 
-
     output$dataset_picker_ui <-
       shiny::renderUI({
         if (shiny::req(input$data_source) == "demo") {
@@ -76,10 +75,8 @@ mod_data_import_server <- function(id) {
         }
       })
 
-
-    dataset_choice <-
+    data_source <-
       shiny::reactive({
-        box::use(modeldata)
         if (shiny::req(input$data_source) == "pinned") {
           if (is.null(data_board)) {
             print("Please re-run using run_app(data_board = pins::board_*()")
@@ -87,7 +84,7 @@ mod_data_import_server <- function(id) {
             pins::pin_read(data_board, shiny::req(input$pinned_dataset_name))
           }
         } else if (input$data_source == "file") {
-          readr::read_csv(shiny::req(input$file_dataset$datapath))
+          input$file_dataset$datapath
         } else if (input$data_source == "demo") {
           dat <- modeldata[[shiny::req(input$demo_dataset)]]
           # if (input$demo_dataset == "penguins") {
@@ -96,6 +93,30 @@ mod_data_import_server <- function(id) {
           dat
         }
       })
+
+
+    data_source <-
+      shiny::reactive({
+        if (shiny::req(input$data_source) == "pinned") {
+          if (is.null(data_board)) {
+            print("Please re-run using run_app(data_board = pins::board_*()")
+          } else {
+            data_source_pinned(shiny::req(input$pinned_dataset_name))
+            # pins::pin_read(data_board, shiny::req(input$pinned_dataset_name))
+          }
+        } else if (input$data_source == "file") {
+          data_source_file(shiny::req(input$file_dataset$datapath))
+          # readr::read_csv(shiny::req(input$file_dataset$datapath))
+        } else if (input$data_source == "demo") {
+          # box::use(modeldata)
+          data_source_demo(shiny::req(input$demo_dataset))
+          # modeldata[[shiny::req(input$demo_dataset)]]
+        }
+      })
+
+    dataset <- shiny::reactive({
+      data_source()@data
+    })
 
     dataset_hash <-
       shiny::reactive({
@@ -113,25 +134,20 @@ mod_data_import_server <- function(id) {
       shiny::selectInput(
         ns("outcome_select"),
         "Outcome",
-        choices = find_outcome_candiates(dataset_choice())
+        choices = find_outcome_candiates(dataset())
       )
     })
 
     output$raw_data_glimpse <- shiny::renderPrint({
-      dplyr::glimpse(shiny::req(dataset_choice()))
+      dplyr::glimpse(shiny::req(dataset()))
     })
 
     list(
-      dataset_choice = dataset_choice,
+      data_source = data_source,
+      dataset = dataset,
       dataset_hash = dataset_hash,
       outcome = shiny::reactive(input$outcome_select),
       confirm_data_import_button = reactive(input$confirm_data_import_button)
     )
   })
 }
-
-## To be copied in the UI
-# mod_data_import_ui("data_import_1")
-
-## To be copied in the server
-# mod_data_import_server("data_import_1")

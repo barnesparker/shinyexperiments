@@ -38,7 +38,7 @@ mod_modeling_ui <- function(id) {
 #' modeling Server Functions
 #'
 #' @noRd
-mod_modeling_server <- function(id, model_mode, saved_models, exp_id) {
+mod_modeling_server <- function(id, model_mode) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
     output$model_selection_ui <-
@@ -65,55 +65,30 @@ mod_modeling_server <- function(id, model_mode, saved_models, exp_id) {
         reactive_model_spec()
       })
 
-    mod_save_object_dialog_server("save_object_dialog_model", "Model", reactive_model_spec, exp_id)
+    mod_save_object_dialog_server("save_object_dialog_model", "Model", reactive_model_config)
 
-
-    # shiny::observe({
-      # shiny::removeModal()
-
-      # saved_models[[input$model_name]] <- reactive_model_spec()
-      #
-      # params_list <- shiny::reactiveValuesToList(param_inputs)
-      #
-      # params_list <-
-      #   params_list[names(params_list) %in% available_args()] |>
-      #   de_reactive()
-      #
-      # params_list <-
-      #   params_list |>
-      #   purrr::map_if(
-      #     ~ is.call(.x),
-      #     ~ .x |> rlang::as_label()
-      #   )
-      #
-      # model_config <-
-      #   list(
-      #     model_selection = input$model_selection,
-      #     engine = input$engine,
-      #     model_mode = model_mode(),
-      #     params_list = params_list
-      #   )
-
-      # save_exp_config(reactive_model_spec(), exp_id(), input$model_name, config_type = "model")
-    # }) |>
-      # shiny::bindEvent(input$confirm_save_button)
-
-
-
-    reactive_model_spec <-
+    reactive_model_config <-
       shiny::reactive({
-        box::use(parsnip)
+
         params_list <- shiny::reactiveValuesToList(param_inputs)
 
         params_list <-
           params_list[names(params_list) %in% available_args()] |>
           de_reactive()
 
-        do.call(
-          shiny::req(input$model_selection),
-          c(list(mode = model_mode(), engine = shiny::req(input$engine)), params_list),
-          envir = parsnip
+        model_config(
+          type = shiny::req(input$model_selection),
+          engine = shiny::req(input$engine),
+          mode = model_mode(),
+          params = params_list,
+          exp_id = get_golem_config("exp_id")
         )
+      })
+
+    reactive_model_spec <-
+      shiny::reactive({
+        reactive_model_config() |>
+          build_object_from_config()
       })
 
     shiny::observe({

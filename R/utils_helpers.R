@@ -6,15 +6,14 @@
 #'
 #' @noRd
 apply_steps <- function(rec, preproc_steps) {
-  shiny::req(rec)
   box::use(recipes)
   for (step in purrr::compact(preproc_steps)) {
-    shiny::req(step$vars())
+    shiny::req(step$vars)
     var_exprs <-
-      step$vars() |>
+      step$vars |>
       rlang::parse_exprs()
     rec <-
-      get(step$func(), envir = recipes)(rec, !!!var_exprs)
+      get(step$func, envir = recipes)(rec, !!!var_exprs)
   }
   rec
 }
@@ -45,14 +44,14 @@ build_recipe_from_config <- function(recipe_config, train_data) {
 #' @return The return value, if any, from executing the utility.
 #'
 #' @noRd
-build_model_from_config <- function(model_config) {
-  box::use(parsnip)
-  do.call(
-    shiny::req(model_config$model_selection),
-    c(list(mode = model_config$model_mode, engine = shiny::req(model_config$engine)), model_config$params_list),
-    envir = parsnip
-  )
-}
+# build_model_from_config <- function(model_config) {
+#   box::use(parsnip)
+#   do.call(
+#     shiny::req(model_config$model_selection),
+#     c(list(mode = model_config$model_mode, engine = shiny::req(model_config$engine)), model_config$params_list),
+#     envir = parsnip
+#   )
+# }
 
 #' build_tune_from_config
 #'
@@ -204,17 +203,17 @@ get_results_from_exp <- function(exp_ids) {
 #' @return The return value, if any, from executing the utility.
 #'
 #' @noRd
-save_exp_config <- function(config, exp_id, config_name, description = NULL, tags = NULL, config_type, pin_type = "rds") {
-  exp_board <- get_exp_board()
-  exp_board |>
-    pins::pin_write(config,
-      name = paste0(exp_id, "_", config_type, "_", config_name),
-      description = description,
-      title = config_name,
-      tags = tags,
-      type = pin_type
-    )
-}
+# save_exp_config <- function(config, exp_id, config_name, description = NULL, tags = NULL, config_type, pin_type = "json") {
+#   exp_board <- get_exp_board()
+#   exp_board |>
+#     pins::pin_write(config,
+#       name = paste0(exp_id, "_", config_type, "_", config_name),
+#       description = description,
+#       title = config_name,
+#       tags = tags,
+#       type = pin_type
+#     )
+# }
 
 #' print_selected_objects
 #'
