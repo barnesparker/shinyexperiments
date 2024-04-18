@@ -25,3 +25,8 @@ can install and run it by running the following commands
 pak::pak("barnesparker/shinyexperiments")
 shinyexperiments::run_app()
 ```
+
+# Live Demo (January 9, 2024)
+
+[![Custom
+Thumbnail](inst/images/shinyexperiments.png)](http://www.youtube.com/watch?v=3-FMrsKwLQ4?si=9U_eLFmvDdcw40Ii&start=1456)

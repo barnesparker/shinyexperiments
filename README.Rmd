@@ -28,3 +28,8 @@ This package is currently in active development and is not yet ready for use. If
 pak::pak("barnesparker/shinyexperiments")
 shinyexperiments::run_app()
 ```
+
+# Live Demo (January 9, 2024)
+
+[![Custom Thumbnail](inst/images/shinyexperiments.png)](http://www.youtube.com/watch?v=3-FMrsKwLQ4?si=9U_eLFmvDdcw40Ii&amp;start=1456)
+
